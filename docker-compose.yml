@@ -1,0 +1,26 @@
+services:
+  claude-wrapper:
+    build: .
+    ports:
+      - "8081:8080"
+    volumes:
+      # Claude Code 設定ディレクトリ
+      - ~/.claude:/root/.claude
+      # プロジェクトディレクトリをマウント
+      - ./workspace:/workspace:rw
+    environment:
+      # ========================================
+      # API設定（どちらか一方を有効にしてください）
+      # ========================================
+
+      # Anthropic (公式Claudeモデル) を使用する場合
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+      # Z.AI (GLMモデル) を使用する場合
+      - ANTHROPIC_API_KEY=${ZAI_API_KEY}
+      - ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic
+
+      # GLMモデル設定 (Z.AIを使用する場合のみ有効)
+      - ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air
+      - ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7
+      - ANTHROPIC_DEFAULT_OPUS_MODEL=glm-4.7
