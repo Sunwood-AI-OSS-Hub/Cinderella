@@ -4,9 +4,18 @@ import subprocess
 from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="Local Claude Code HTTP Wrapper")
+
+# CORS設定（Dockerネットワーク内からのアクセスを許可）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 運用環境では適切に制限
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class RunRequest(BaseModel):
