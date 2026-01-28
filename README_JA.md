@@ -128,12 +128,26 @@ docker compose up -d
 
 4. **Discordで使用**
 
+ボットとの対話は2つの方法で可能です：
+
+**ボットをメンションする（推奨）：**
+```
+@BotName 現在の日時を表示して
+@BotName ping
+```
+
+**またはコマンドを使用：**
 ```
 !ask 現在の日時を表示して
 !ping
 !help
 !info
 ```
+
+**リアクションインジケーター：**
+- ⏳ リクエストを処理中...
+- ✅ リクエストが正常に完了
+- ❌ リクエストが失敗（ログで詳細を確認）
 
 ## APIエンドポイント
 
@@ -193,6 +207,38 @@ ANTHROPIC_DEFAULT_OPUS_MODEL=glm-4.7
 ```
 
 または、docker-compose.ymlで事前に設定されています。
+
+## ロギング
+
+`cc-api` と `discord-bot` の両方が、デバッグと監視のための詳細なロギングをサポートしています。
+
+**環境変数:**
+
+```bash
+# ログレベルを設定 (DEBUG, INFO, WARNING, ERROR)
+LOG_LEVEL=DEBUG
+
+# cc-api用: CORS許可オリジンを制御
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
+```
+
+**ログ機能:**
+- **cc-api**: APIリクエスト、レスポンス、エラーをログ記録。セキュリティのため、機密性の高いプロンプト内容は自動的に `[REDACTED]` に置き換えられます。
+- **discord-bot**: ボットイベント、コマンド実行、エラーを詳細なコンテキストと共にログ記録。
+
+**ログの確認:**
+
+```bash
+# すべてのログを表示
+docker compose logs -f
+
+# 特定のサービスのログを表示
+docker compose logs -f cc-api
+docker compose logs -f discord-bot
+
+# 最新のログを表示
+docker compose logs --tail=100 -f
+```
 
 ## ポート
 
