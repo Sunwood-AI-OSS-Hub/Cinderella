@@ -6,14 +6,30 @@ import discord
 from discord.ext import commands
 import requests
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException, Depends
 from pydantic import BaseModel, Field
 from typing import Optional
 import concurrent.futures
 
+# 環境変数の検証強化 - 空文字列もチェック
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+if not DISCORD_TOKEN or not DISCORD_TOKEN.strip():
+    raise ValueError("DISCORD_TOKEN is required and cannot be empty")
+
 CINDERELLA_URL = os.getenv("CINDERELLA_URL", "http://cc-api:8080")
 API_PORT = int(os.getenv("API_PORT", "8080"))
+
+# APIキー認証（設定されていない場合は認証なしで動作）
+API_KEY = os.getenv("DISCORD_BOT_API_KEY")
+
+# タイムアウト設定（アクション別に最適化）
+DEFAULT_TIMEOUT = 30  # デフォルト30秒
+ACTION_TIMEOUTS = {
+    "sendMessage": 30,
+    "readMessages": 60,  # メッセージ一覧は長めに
+    "threadList": 60,
+    "reactions": 45,
+}
 
 # ロギング設定
 logging.basicConfig(
@@ -247,10 +263,29 @@ async def info(ctx):
 # FastAPI エンドポイント（Discord操作用）
 # ========================================
 
-def run_async(coro):
-    """Botのイベントループで非同期処理を実行"""
+async def verify_api_key(x_api_key: str = Header(None)):
+    """APIキー認証を行う依存関数
+
+    API_KEYが設定されている場合は認証を要求し、
+    設定されていない場合は認証なしで動作する（開発環境用）
+    """
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key"
+        )
+    return x_api_key
+
+
+def run_async(coro, timeout: int = DEFAULT_TIMEOUT):
+    """Botのイベントループで非同期処理を実行
+
+    Args:
+        coro: 非同期コルーチン
+        timeout: タイムアウト秒数（デフォルト30秒）
+    """
     future = asyncio.run_coroutine_threadsafe(coro, bot.loop)
-    return future.result(timeout=10)
+    return future.result(timeout=timeout)
 
 
 @api_app.get("/health")
@@ -259,57 +294,68 @@ async def api_health():
     return {"ok": True, "bot_ready": bot.is_ready()}
 
 
-@api_app.post("/v1/discord/action", response_model=DiscordActionResponse)
+@api_app.post(
+    "/v1/discord/action",
+    response_model=DiscordActionResponse,
+    dependencies=[Depends(verify_api_key)]
+)
 async def discord_action(req: DiscordActionRequest):
-    """Discordアクションを実行（Moltbot互換）"""
+    """Discordアクションを実行（Moltbot互換）
+
+    APIキー認証が必要（DISCORD_BOT_API_KEYが設定されている場合）
+    """
     if not bot.is_ready():
         return DiscordActionResponse(success=False, error="Bot is not ready yet")
 
     action = req.action
     logger.info(f"Discord action: {action}")
 
+    # アクションに応じたタイムアウトを取得
+    timeout = ACTION_TIMEOUTS.get(action, DEFAULT_TIMEOUT)
+    logger.debug(f"Using timeout: {timeout}s for action: {action}")
+
     try:
         if action == "react":
-            return run_async(handle_react(req))
+            return run_async(handle_react(req), timeout)
         elif action == "sendMessage":
-            return run_async(handle_send_message(req))
+            return run_async(handle_send_message(req), timeout)
         elif action == "editMessage":
-            return run_async(handle_edit_message(req))
+            return run_async(handle_edit_message(req), timeout)
         elif action == "deleteMessage":
-            return run_async(handle_delete_message(req))
+            return run_async(handle_delete_message(req), timeout)
         elif action == "threadCreate":
-            return run_async(handle_thread_create(req))
+            return run_async(handle_thread_create(req), timeout)
         elif action == "threadList":
-            return run_async(handle_thread_list(req))
+            return run_async(handle_thread_list(req), timeout)
         elif action == "threadReply":
-            return run_async(handle_thread_reply(req))
+            return run_async(handle_thread_reply(req), timeout)
         elif action == "reactions":
-            return run_async(handle_reactions(req))
+            return run_async(handle_reactions(req), timeout)
         elif action == "readMessages":
-            return run_async(handle_read_messages(req))
+            return run_async(handle_read_messages(req), timeout)
         elif action == "fetchMessage":
-            return run_async(handle_fetch_message(req))
+            return run_async(handle_fetch_message(req), timeout)
         elif action == "pinMessage":
-            return run_async(handle_pin_message(req))
+            return run_async(handle_pin_message(req), timeout)
         elif action == "listPins":
-            return run_async(handle_list_pins(req))
+            return run_async(handle_list_pins(req), timeout)
         elif action == "memberInfo":
-            return run_async(handle_member_info(req))
+            return run_async(handle_member_info(req), timeout)
         elif action == "roleInfo":
-            return run_async(handle_role_info(req))
+            return run_async(handle_role_info(req), timeout)
         elif action == "emojiList":
-            return run_async(handle_emoji_list(req))
+            return run_async(handle_emoji_list(req), timeout)
         elif action == "channelInfo":
-            return run_async(handle_channel_info(req))
+            return run_async(handle_channel_info(req), timeout)
         elif action == "channelList":
-            return run_async(handle_channel_list(req))
+            return run_async(handle_channel_list(req), timeout)
         elif action == "permissions":
-            return run_async(handle_permissions(req))
+            return run_async(handle_permissions(req), timeout)
         else:
             return DiscordActionResponse(success=False, error=f"Unknown action: {action}")
     except concurrent.futures.TimeoutError:
-        logger.error("Discord action timeout")
-        return DiscordActionResponse(success=False, error="Timeout")
+        logger.error(f"Discord action timeout after {timeout}s")
+        return DiscordActionResponse(success=False, error=f"Timeout after {timeout}s")
     except Exception as e:
         logger.error(f"Discord action error: {e}", exc_info=True)
         return DiscordActionResponse(success=False, error=str(e))
@@ -907,9 +953,6 @@ def run_api():
 # ========================================
 
 if __name__ == "__main__":
-    if not DISCORD_TOKEN:
-        raise ValueError("DISCORD_TOKENが設定されていません")
-
     # FastAPIサーバーを別スレッドで起動
     api_thread = threading.Thread(target=run_api, daemon=True)
     api_thread.start()
