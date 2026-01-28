@@ -101,3 +101,5 @@ LICENSE
 
 # workspace directory (created at runtime)
 /workspace
+
+.git/
