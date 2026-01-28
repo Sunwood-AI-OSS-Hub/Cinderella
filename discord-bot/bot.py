@@ -28,8 +28,8 @@ BOT_USER_ID = None
 async def on_ready():
     global BOT_USER_ID
     BOT_USER_ID = bot.user.id
-    print(f"{bot.user} が起動しました！✨")
-    print(f"Connected to {len(bot.guilds)} guilds")
+    logger.info(f"{bot.user} が起動しました！✨")
+    logger.info(f"Connected to {len(bot.guilds)} guilds")
 
 
 @bot.event
@@ -40,7 +40,7 @@ async def on_message(message):
 
     # Botへのメンションをチェック
     if bot.user in message.mentions:
-        logger.info(f"Bot mentioned by {message.author}: {message.content[:100]}...")
+        logger.info(f"Bot mentioned by {message.author}")
 
         # メンションを削除してプロンプトを抽出
         content = message.content
@@ -86,14 +86,14 @@ async def ask(ctx, *, prompt: str = None):
 
     # 非同期で処理（タスクへの参照を保持して例外を捕捉）
     task = bot.loop.create_task(process_ask(ctx, prompt))
-    task.add_done_callback(lambda t: t.exception() and print(f"Task error: {t.exception()}"))
+    task.add_done_callback(lambda t: t.exception() and logger.error(f"Task error: {t.exception()}"))
 
 
 async def process_ask(ctx, prompt: str):
     """Cinderella APIを呼び出して結果を返す"""
     try:
-        logger.info(f"Processing ask command with prompt: {prompt[:100]}...")
-        loop = asyncio.get_event_loop()
+        logger.info("Processing ask command")
+        loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(
             None,
             lambda: requests.post(
@@ -133,8 +133,8 @@ async def process_ask(ctx, prompt: str):
             try:
                 error_json = response.json()
                 error_detail = error_json.get("detail", "")
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to parse error response as JSON: {e}")
             await ctx.send(f"❌ エラー ({response.status_code}): {error_detail or 'APIで問題が発生したみたい'}")
             await update_reaction(ctx.message, "❌")
 
