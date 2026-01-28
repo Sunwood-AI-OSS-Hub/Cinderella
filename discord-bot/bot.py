@@ -22,8 +22,9 @@ async def ask(ctx, *, prompt: str = None):
 
     await ctx.send("ちょっと待っててね……Claudeに聞いてみる！🔮")
 
-    # 非同期で処理（タスクへの参照を保持）
-    bot.loop.create_task(process_ask(ctx, prompt))
+    # 非同期で処理（タスクへの参照を保持して例外を捕捉）
+    task = bot.loop.create_task(process_ask(ctx, prompt))
+    task.add_done_callback(lambda t: t.exception() and print(f"Task error: {t.exception()}"))
 
 
 async def process_ask(ctx, prompt: str):
