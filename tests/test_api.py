@@ -133,8 +133,9 @@ def test_simple_prompt(reporter: TestReporter):
 
         if response.status_code == 200:
             data = response.json()
-            exit_code = data['exit_code']
-            result = data['stdout_json'].get('result', 'N/A')[:200]
+            exit_code = data.get('exit_code', -1)
+            stdout_json = data.get('stdout_json', {})
+            result = stdout_json.get('result', 'N/A')[:200]
 
             print(f"Exit Code: {exit_code}")
             print(f"Result: {result}...")
@@ -176,8 +177,9 @@ def test_with_bash_tool(reporter: TestReporter):
 
         if response.status_code == 200:
             data = response.json()
-            exit_code = data['exit_code']
-            result = data['stdout_json'].get('result', 'N/A')[:200]
+            exit_code = data.get('exit_code', -1)
+            stdout_json = data.get('stdout_json', {})
+            result = stdout_json.get('result', 'N/A')[:200]
 
             print(f"Exit Code: {exit_code}")
             print(f"Result: {result}...")

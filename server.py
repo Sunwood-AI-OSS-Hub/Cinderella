@@ -31,7 +31,9 @@ def health():
 @app.post("/v1/claude/run", response_model=RunResponse)
 def run(req: RunRequest):
     # 重要: ローカル用途でも、許可ツールは最小から。
-    allowed_tools_str = ",".join(req.allowed_tools) if req.allowed_tools else "Read"
+    # 空リストの場合はデフォルトの["Read"]を使用
+    allowed_tools = req.allowed_tools if req.allowed_tools else ["Read"]
+    allowed_tools_str = ",".join(allowed_tools)
 
     cmd = [
         "claude",
