@@ -1,4 +1,20 @@
+
+<div align="center">
+  <img src="./assets/header.png" alt="Cinderella Header" width="600"/>
+</div>
+
+<div align="center">
+
+![Python](https://img.shields.io/badge/Python-3.13%2B-blue?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-green?style=flat-square&logo=fastapi&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-blue?style=flat-square&logo=docker&logoColor=white)
+![Claude Code](https://img.shields.io/badge/Claude_Code-CLI-orange?style=flat-square)
+
 # Cinderella - Claude Code HTTP Wrapper
+
+
+</div>
+
 
 Claude Code CLI を FastAPI でラップしたローカルHTTPサーバー。
 
