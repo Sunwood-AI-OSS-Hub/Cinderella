@@ -1,6 +1,6 @@
 
 <div align="center">
-  <img src="./assets/header.png" alt="Cinderella Header" width="600"/>
+  <img src="./assets/header.png" alt="Cinderella Header" width="100%"/>
 </div>
 
 <div align="center">
