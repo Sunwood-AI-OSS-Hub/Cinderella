@@ -119,12 +119,18 @@ If you want to use Claude via Discord:
    - Go to "Bot" section and create a bot
    - Copy the bot token
 
-2. **Add DISCORD_TOKEN to `.env`**
+2. **Add Environment Variables to `.env`**
 
-Add the following line to your `.env` file:
+Add the following lines to your `.env` file:
 
 ```bash
+# Required: Discord Bot Token
 DISCORD_TOKEN=your_discord_bot_token_here
+
+# Optional: API Key for endpoint authentication
+# If set, requests to /v1/discord/action must include this key in the x-api-key header
+# If not set, the endpoint is accessible without authentication
+DISCORD_BOT_API_KEY=your_discord_bot_api_key_here
 ```
 
 3. **Start Services**
@@ -207,6 +213,20 @@ Executes Claude Code.
 
 Execute Discord actions (Moltbot-compatible) from Claude Code.
 
+**Authentication (Optional):**
+
+If `DISCORD_BOT_API_KEY` is set in your environment variables, requests must include the API key in the `x-api-key` header:
+
+```bash
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
+```
+
+If `DISCORD_BOT_API_KEY` is not set, the endpoint is accessible without authentication.
+
 **Supported Actions:**
 
 - `react` - Add reaction to a message
@@ -264,17 +284,25 @@ Execute Discord actions (Moltbot-compatible) from Claude Code.
 Claude Code can execute Discord actions using curl:
 
 ```bash
-# React to a message
+# React to a message (with API key authentication)
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
+
+# Send a message (with API key authentication)
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"sendMessage","channelId":"123","content":"Hello from Claude Code!"}'
+
+# Without authentication (if DISCORD_BOT_API_KEY is not set)
 curl -s http://localhost:8082/v1/discord/action \
   -X POST \
   -H "Content-Type: application/json" \
   -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
-
-# Send a message
-curl -s http://localhost:8082/v1/discord/action \
-  -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"action":"sendMessage","channelId":"123","content":"Hello from Claude Code!"}'
 ```
 
 ## GLM Model Configuration

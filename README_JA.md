@@ -118,12 +118,18 @@ Discord経由でClaudeを使用したい場合：
    - 「Bot」セクションでボットを作成
    - ボットトークンをコピー
 
-2. **`.env` に DISCORD_TOKEN を追加**
+2. **`.env` に環境変数を追加**
 
 `.env` ファイルに以下を追加してください：
 
 ```bash
+# 必須: Discord Botトークン
 DISCORD_TOKEN=your_discord_bot_token_here
+
+# 任意: APIエンドポイントの認証用APIキー
+# 設定すると、/v1/discord/action へのリクエストに x-api-key ヘッダーが必要になります
+# 設定しない場合、認証なしでアクセス可能です
+DISCORD_BOT_API_KEY=your_discord_bot_api_key_here
 ```
 
 3. **サービスを起動**
@@ -206,6 +212,20 @@ Claude Codeを実行します。
 
 Claude CodeからDiscordアクションを実行します（Moltbot互換）。
 
+**認証（オプション）:**
+
+環境変数 `DISCORD_BOT_API_KEY` が設定されている場合、リクエストには `x-api-key` ヘッダーにAPIキーを含める必要があります：
+
+```bash
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
+```
+
+`DISCORD_BOT_API_KEY` が設定されていない場合、認証なしでエンドポイントにアクセスできます。
+
 **サポートされているアクション:**
 
 - `react` - メッセージにリアクションを追加
@@ -263,17 +283,25 @@ Claude CodeからDiscordアクションを実行します（Moltbot互換）。
 Claude Codeはcurlを使ってDiscordアクションを実行できます：
 
 ```bash
-# メッセージにリアクション
+# メッセージにリアクション（APIキー認証あり）
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
+
+# メッセージを送信（APIキー認証あり）
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"sendMessage","channelId":"123","content":"こんにちは、Claude Codeから！"}'
+
+# 認証なし（DISCORD_BOT_API_KEYが設定されていない場合）
 curl -s http://localhost:8082/v1/discord/action \
   -X POST \
   -H "Content-Type: application/json" \
   -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
-
-# メッセージを送信
-curl -s http://localhost:8082/v1/discord/action \
-  -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"action":"sendMessage","channelId":"123","content":"こんにちは、Claude Codeから！"}'
 ```
 
 ## GLMモデル設定
