@@ -5,8 +5,8 @@ services:
     ports:
       - "8081:8080"
     volumes:
-      # Claude Code 設定ディレクトリ
-      - ./data/.claude:/root/.claude
+      # Claude Code 設定ディレクトリ（cinderellaユーザー用）
+      - ./data/.claude:/home/cinderella/.claude
       # プロジェクトディレクトリをマウント
       - ./workspace:/workspace:rw
     environment:
