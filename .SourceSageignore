@@ -99,6 +99,5 @@ LICENSE
 *.mp4
 *.mp3
 
-.git/
-
-./workspace
+# workspace directory (created at runtime)
+/workspace
