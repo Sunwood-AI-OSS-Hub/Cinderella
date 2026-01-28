@@ -93,7 +93,7 @@
 docker compose up -d
 
 # テストを実行
-python3 tests/test_api.py
+python3 cc-api/tests/test_api.py
 ```
 
 ## テスト環境
@@ -101,4 +101,4 @@ python3 tests/test_api.py
 | 項目 | 値 |
 |------|-----|
 | サーバー | http://127.0.0.1:8081 |
-| テストファイル | tests/test_api.py |
+| テストファイル | cc-api/tests/test_api.py |

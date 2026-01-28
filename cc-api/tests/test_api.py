@@ -83,7 +83,7 @@ python3 tests/test_api.py
 """
         return report
 
-    def save_report(self, path: str = "tests/README.md"):
+    def save_report(self, path: str = "cc-api/tests/README.md"):
         report = self.generate_report()
         Path(path).write_text(report, encoding="utf-8")
         print(f"\n📄 レポートを {path} に保存しました")
