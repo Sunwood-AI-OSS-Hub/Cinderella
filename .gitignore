@@ -40,3 +40,7 @@ Thumbs.db
 
 # Test reports
 tests/test_report.md
+workspace/
+.SourceSageAssets/Repository_summary.md
+
+data/.claude
