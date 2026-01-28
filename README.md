@@ -129,10 +129,26 @@ docker compose up -d
 
 4. **Use in Discord**
 
+You can interact with the bot in two ways:
+
+**Mention the bot directly (recommended):**
 ```
-!ask 現在の日時を表示して
+@BotName Show me the current date and time
+@BotName ping
+```
+
+**Or use commands:**
+```
+!ask Show me the current date and time
 !ping
+!help
+!info
 ```
+
+**Reaction Indicators:**
+- ⏳ Processing your request...
+- ✅ Request completed successfully
+- ❌ Request failed (check logs for details)
 
 ## API Endpoints
 
@@ -192,6 +208,38 @@ ANTHROPIC_DEFAULT_OPUS_MODEL=glm-4.7
 ```
 
 Alternatively, these are pre-configured in docker-compose.yml.
+
+## Logging
+
+Both `cc-api` and `discord-bot` support detailed logging for debugging and monitoring.
+
+**Environment Variables:**
+
+```bash
+# Set log level (DEBUG, INFO, WARNING, ERROR)
+LOG_LEVEL=DEBUG
+
+# For cc-api: Control CORS allowed origins
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
+```
+
+**Log Features:**
+- **cc-api**: Logs API requests, responses, and errors. Sensitive prompt content is automatically redacted as `[REDACTED]` for security.
+- **discord-bot**: Logs bot events, command executions, and errors with detailed context.
+
+**View Logs:**
+
+```bash
+# View all logs
+docker compose logs -f
+
+# View specific service logs
+docker compose logs -f cc-api
+docker compose logs -f discord-bot
+
+# View logs with tail
+docker compose logs --tail=100 -f
+```
 
 ## Ports
 
