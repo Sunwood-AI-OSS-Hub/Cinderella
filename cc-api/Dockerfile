@@ -26,8 +26,7 @@ RUN chown -R cinderella:cinderella /app
 # workspace ディレクトリを作成し、cinderellaが使えるように設定
 RUN mkdir -p /workspace && chown -R cinderella:cinderella /workspace
 
-# cinderellaユーザーに切り替える前に、.claudeディレクトリを準備
-USER root
+# .claudeディレクトリを準備
 RUN mkdir -p /home/cinderella/.claude && \
     chown -R cinderella:cinderella /home/cinderella/.claude
 

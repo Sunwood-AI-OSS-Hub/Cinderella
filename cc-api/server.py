@@ -17,10 +17,12 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Local Claude Code HTTP Wrapper")
 
-# CORS設定（Dockerネットワーク内からのアクセスを許可）
+# CORS設定（環境変数で制御）
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 運用環境では適切に制限
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -62,9 +64,10 @@ def run(req: RunRequest):
         allowed_tools_str,
     ]
 
-    logger.info(f"Executing command: {' '.join(cmd)}")
+    logger.info(f"Executing command: claude -p [REDACTED] --output-format json --allowedTools {allowed_tools_str}")
     logger.info(f"Working directory: {req.cwd or 'default'}")
     logger.info(f"Timeout: {req.timeout_sec} seconds")
+    logger.debug(f"Prompt (first 100 chars): {req.prompt[:100]}")
 
     try:
         p = subprocess.run(
