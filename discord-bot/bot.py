@@ -17,8 +17,8 @@ async def ask(ctx, *, prompt: str):
     """Claudeに質問するコマンド"""
     await ctx.send("ちょっと待っててね……Claudeに聞いてみる！🔮")
 
-    # 非同期で処理
-    asyncio.create_task(process_ask(ctx, prompt))
+    # 非同期で処理（タスクへの参照を保持）
+    bot.loop.create_task(process_ask(ctx, prompt))
 
 
 async def process_ask(ctx, prompt: str):
@@ -35,7 +35,7 @@ async def process_ask(ctx, prompt: str):
                     "allowed_tools": ["Read", "Bash", "Edit"],
                     "timeout_sec": 300,
                 },
-                timeout=300,
+                timeout=310,
             ),
         )
 
