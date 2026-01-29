@@ -25,7 +25,7 @@ curl -s http://localhost:8082/v1/discord/action \
 
 - For reactions: `channelId`, `messageId`, and an `emoji`.
 - For fetchMessage: `guildId`, `channelId`, and `messageId`.
-- For sendMessage: `channelId` and `content`.
+- For sendMessage: `channelId` and `content`. Optional: `replyTo` for replying to a specific message.
 - For threads: `channelId`, optional `messageId` (for create), `threadId` (for reply), or `guildId` (for list).
 - For member info: `guildId` and `userId`.
 - For role/emoji/channel info: `guildId` or `channelId`.
@@ -80,6 +80,24 @@ curl -s http://localhost:8082/v1/discord/action \
 **Response:**
 ```json
 {"success": true, "data": {"message_id": "123456789012345678"}}
+```
+
+### Send a reply message
+
+特定のメッセージに返信（リプライ）として送信します。
+
+```json
+{
+  "action": "sendMessage",
+  "channelId": "1234567890",
+  "content": "This is a reply message!",
+  "replyTo": "0987654321"
+}
+```
+
+**Response:**
+```json
+{"success": true, "data": {"message_id": "123456789012345679"}}
 ```
 
 ### Edit a message
