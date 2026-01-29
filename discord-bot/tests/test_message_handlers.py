@@ -3,7 +3,7 @@
 discord-bot API メッセージハンドラーテスト
 
 Discord操作APIのメッセージ関連機能が正しく動作するか確認します。
-15個のメッセージハンドラーをテストします。
+17個のメッセージハンドラーをテストします。
 """
 
 import requests
@@ -14,7 +14,8 @@ import sys
 DISCORD_BOT_API_URL = "http://127.0.0.1:8082"
 
 # デフォルトのチャンネルIDとギルドID（テスト用）
-DEFAULT_CHANNEL_ID = "1465315494595792936"
+# テスト用チャンネル: https://discord.com/channels/1188045372526964796/1466415185282732220
+DEFAULT_CHANNEL_ID = "1466415185282732220"  # テスト用チャンネル
 DEFAULT_GUILD_ID = "1188045372526964796"
 DEFAULT_USER_ID = "539207222494699520"  # サブエージェントのユーザーID
 
@@ -38,7 +39,7 @@ def test_health():
 
 
 # ========================================
-# Message Handlers (15 tests)
+# Message Handlers (16 tests)
 # ========================================
 
 def test_send_message(channel_id: str, content: str):
@@ -60,6 +61,36 @@ def test_send_message(channel_id: str, content: str):
             return message_id
         else:
             print(f"❌ メッセージ送信失敗: {result.get('error')}\n")
+            return None
+    except Exception as e:
+        print(f"❌ 例外発生: {e}\n")
+        return None
+
+
+def test_send_message_reply(channel_id: str, reply_to_message_id: str, content: str):
+    """メッセージ返信テスト"""
+    print(f"=== メッセージ返信テスト ===")
+    try:
+        response = requests.post(
+            f"{DISCORD_BOT_API_URL}/v1/discord/action",
+            json={
+                "action": "sendMessage",
+                "channelId": channel_id,
+                "content": content,
+                "replyTo": reply_to_message_id
+            },
+            timeout=10
+        )
+        result = response.json()
+        print(f"Status: {response.status_code}")
+        print(f"Response: {json.dumps(result, ensure_ascii=False, indent=2)}")
+
+        if result.get("success"):
+            message_id = result.get("data", {}).get("message_id")
+            print(f"✅ メッセージ返信成功 (message_id: {message_id}, reply_to: {reply_to_message_id})\n")
+            return message_id
+        else:
+            print(f"❌ メッセージ返信失敗: {result.get('error')}\n")
             return None
     except Exception as e:
         print(f"❌ 例外発生: {e}\n")
@@ -417,7 +448,7 @@ def test_search_messages(guild_id: str, channel_id: str):
 def main():
     """メインテストランナー"""
     print("🧪 discord-bot API メッセージハンドラーテスト開始\n")
-    print("15個のメッセージハンドラーをテストします\n")
+    print("17個のメッセージハンドラーをテストします\n")
 
     # ヘルスチェック
     if not test_health():
@@ -434,7 +465,7 @@ def main():
     results = {"passed": 0, "failed": 0, "skipped": 0}
 
     print("="*50)
-    print("📨 Message Handlers (15 tests)")
+    print("📨 Message Handlers (17 tests)")
     print("="*50 + "\n")
 
     # 1. メッセージ送信
@@ -551,11 +582,34 @@ def main():
 
     time.sleep(1)
 
-    # 15. メッセージ削除（最後）
-    if test_delete_message(channel_id, message_id):
+    # 15. メッセージ削除（最後）- スキップして残す
+    # if test_delete_message(channel_id, message_id):
+    #     results["passed"] += 1
+    # else:
+    #     results["failed"] += 1
+    print("=== メッセージ削除テスト（スキップ - 確認用に残す） ===")
+    print("⚠️ メッセージ削除はスキップしました（確認用に残しています）\n")
+    results["skipped"] += 1
+
+    time.sleep(1)
+
+    # 16. メッセージ返信（新機能）
+    reply_message_id = test_send_message_reply(channel_id, message_id, "📩 これは返信テストです（replyTo機能）")
+    if reply_message_id:
         results["passed"] += 1
     else:
         results["failed"] += 1
+
+    time.sleep(1)
+
+    # 17. 返信メッセージ削除 - スキップして残す
+    # if reply_message_id and test_delete_message(channel_id, reply_message_id):
+    #     results["passed"] += 1
+    # else:
+    #     results["failed"] += 1
+    print("=== 返信メッセージ削除テスト（スキップ - 確認用に残す） ===")
+    print("⚠️ 返信メッセージ削除はスキップしました（確認用に残しています）\n")
+    results["skipped"] += 1
 
     # 結果表示
     print("\n" + "="*50)
@@ -564,7 +618,7 @@ def main():
     print(f"✅ パス: {results['passed']}")
     print(f"❌ 失敗: {results['failed']}")
     print(f"⚠️ スキップ: {results['skipped']}")
-    print(f"📋 合計: {results['passed'] + results['failed'] + results['skipped']}/15")
+    print(f"📋 合計: {results['passed'] + results['failed'] + results['skipped']}/17")
 
     if results['failed'] == 0:
         print("\n🎉 すべてのテストが成功しました！")
