@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 
 CINDERELLA_URL = os.getenv("CINDERELLA_URL", "http://cc-api:8080")
 
+# APIタイムアウト設定
+CINDERELLA_API_TIMEOUT = 60  # APIのタイムアウト（秒）
+CINDERELLA_REQUEST_TIMEOUT = CINDERELLA_API_TIMEOUT + 5  # リクエストタイムアウト（余裕を持たせる）
+
 # Botの人格設定
 BOT_PERSONALITIES = {
     "optimist": {
@@ -328,7 +332,7 @@ async def process_debate_message(
                     "allowed_tools": ["Read"],
                     "timeout_sec": 60,
                 },
-                timeout=65,
+                timeout=CINDERELLA_REQUEST_TIMEOUT,
             ),
         )
         
