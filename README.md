@@ -26,8 +26,14 @@ Pre-configured to work with GLM models (Zhipu AI).
 **Architecture:**
 
 ```
-Discord User → Discord Bot → cc-api (HTTP) → Claude Code CLI
+Discord User ⇄ Discord Bot (FastAPI) ⇄ cc-api (HTTP) ⇄ Claude Code CLI
+                   ↓
+            :8082 (HTTP API)
 ```
+
+Cinderella supports **bidirectional communication**:
+- **User → AI**: Ask questions via Discord or HTTP API
+- **AI → User**: Send notifications from Claude Code to Discord via discord-bot API
 
 ## Setup
 
@@ -197,6 +203,80 @@ Executes Claude Code.
 }
 ```
 
+### `POST /v1/discord/action`
+
+Execute Discord actions (Moltbot-compatible) from Claude Code.
+
+**Supported Actions:**
+
+- `react` - Add reaction to a message
+- `sendMessage` - Send a new message
+- `editMessage` - Edit an existing message
+- `deleteMessage` - Delete a message
+
+**Request Examples:**
+
+```json
+// React to a message
+{
+  "action": "react",
+  "channelId": "1234567890",
+  "messageId": "0987654321",
+  "emoji": "✅"
+}
+
+// Send a message
+{
+  "action": "sendMessage",
+  "channelId": "1234567890",
+  "content": "Hello from Claude Code!"
+}
+
+// Edit a message
+{
+  "action": "editMessage",
+  "channelId": "1234567890",
+  "messageId": "0987654321",
+  "content": "Updated message"
+}
+
+// Delete a message
+{
+  "action": "deleteMessage",
+  "channelId": "1234567890",
+  "messageId": "0987654321"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Reaction added"
+  }
+}
+```
+
+**Usage from Claude Code:**
+
+Claude Code can execute Discord actions using curl:
+
+```bash
+# React to a message
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
+
+# Send a message
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"action":"sendMessage","channelId":"123","content":"Hello from Claude Code!"}'
+```
+
 ## GLM Model Configuration
 
 When using Z.AI (GLM models), you can configure the following settings in `.env` or environment variables:
@@ -243,7 +323,8 @@ docker compose logs --tail=100 -f
 
 ## Ports
 
-- **8081**: HTTP server
+- **8081**: cc-api HTTP server
+- **8082**: discord-bot API server (for Claude Code → Discord actions)
 
 ## File Structure
 
@@ -253,7 +334,7 @@ cinderella/
 │   ├── server.py               # FastAPI server
 │   └── Dockerfile              # API server container
 ├── discord-bot/                # Discord Bot interface
-│   ├── bot.py                  # Discord Bot本体
+│   ├── bot.py                  # Discord Bot本体 + FastAPI
 │   ├── Dockerfile              # Bot container
 │   └── requirements.txt        # Python dependencies
 ├── docker-compose.yml          # Service orchestration
