@@ -201,6 +201,62 @@ def test_with_bash_tool(reporter: TestReporter):
     reporter.add_result("Bashツールテスト", status, details)
 
 
+def test_dice_roll(reporter: TestReporter):
+    """サイコロを振るテスト"""
+    print("=== サイコロアプリテスト ===")
+    details = ""
+    status = "PASS"
+
+    try:
+        response = requests.post(
+            "http://127.0.0.1:8081/v1/claude/run",
+            json={
+                "prompt": "workspace にフォルダを作って、そこにシンプルなHTMLのサイコロアプリを作って。結果のファイルパスだけ答えて。",
+                "cwd": "/workspace",
+                "allowed_tools": ["Write", "Bash", "Read"],
+                "timeout_sec": 30,
+            },
+        )
+        print(f"Status: {response.status_code}")
+
+        if response.status_code == 200:
+            data = response.json()
+            exit_code = data.get('exit_code', -1)
+            stdout_json = data.get('stdout_json', {})
+            result = stdout_json.get('result', 'N/A')
+
+            print(f"Exit Code: {exit_code}")
+            print(f"Dice App Result: {result}")
+
+            # 結果にHTMLファイルパスが含まれているかチェック
+            import re
+            html_match = re.search(r'/workspace/.+\.html', str(result))
+            file_path = html_match.group() if html_match else None
+
+            details += f"- **Status Code**: {response.status_code}\n"
+            details += f"- **Exit Code**: {exit_code}\n"
+            details += f"- **Result**: `{result}`\n"
+
+            if file_path and ".html" in file_path:
+                details += f"- **HTML App Created**: {file_path} 🎲\n"
+                print(f"✅ HTMLアプリ作成: {file_path} 🎲\n")
+            else:
+                status = "FAIL"
+                details += f"- **Error**: HTMLファイルが見つかりません\n"
+                print(f"❌ HTMLファイルが見つかりません\n")
+        else:
+            status = "FAIL"
+            details += f"- **Status Code**: {response.status_code}\n"
+            details += f"- **Error**: {response.json()}\n"
+            print(f"❌ サイコロテスト失敗: {response.json()}\n")
+    except Exception as e:
+        status = "FAIL"
+        details += f"- **エラー**: {e}\n"
+        print(f"❌ サイコロテスト失敗: {e}\n")
+
+    reporter.add_result("サイコロアプリテスト", status, details)
+
+
 if __name__ == "__main__":
     print("🧪 Cinderella API テスト開始\n")
 
@@ -210,6 +266,7 @@ if __name__ == "__main__":
         test_health(reporter)
         test_simple_prompt(reporter)
         test_with_bash_tool(reporter)
+        test_dice_roll(reporter)
 
         failed = sum(1 for r in reporter.results if r["status"] == "FAIL")
         if failed == 0:
