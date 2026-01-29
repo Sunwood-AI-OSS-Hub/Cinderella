@@ -4,6 +4,13 @@ Discord Bot APIのテストスイートと結果のドキュメント
 
 ## テスト結果
 
+### Debate Functionality (3 tests)
+- **結果**: テスト作成完了
+- **テスト項目**:
+  1. 議論開始メッセージの送信
+  2. 議論へのリアクション
+  3. 議論履歴の確認
+
 ### Message Handlers (17 tests)
 - **結果**: 17/17 パス（完璧）
 - **テスト項目**:
@@ -75,6 +82,9 @@ python test_channel_handlers.py
 
 # ギルドハンドラーのみ
 python test_guild_handlers.py
+
+# 議論機能のみ
+python test_debate_handler.py
 
 # 引数を指定（チャンネルID、ギルドID、ユーザーID）
 python test_all.py <channel_id> <guild_id> <user_id>

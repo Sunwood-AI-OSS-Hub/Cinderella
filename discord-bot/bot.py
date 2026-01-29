@@ -154,6 +154,18 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
+    # 議論中のチャンネルかチェック
+    context = debate_manager.get_context(message.channel.id)
+    if context:
+        # 議論中の場合、他のBotのメッセージに応答
+        if message.author.bot:
+            logger.info(f"Processing debate message from bot {message.author} in channel {message.channel.id}")
+            try:
+                await process_debate_message(message, bot, context.personality)
+            except Exception as e:
+                logger.error(f"Error in debate message processing: {e}", exc_info=True)
+        return
+
     # Botへのメンションをチェック
     if bot.user in message.mentions:
         logger.info(f"Bot mentioned by {message.author}")
