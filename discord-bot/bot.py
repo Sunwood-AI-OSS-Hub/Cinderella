@@ -42,7 +42,8 @@ from debate_handler import (
     DebateManager,
     process_debate_message,
     handle_debate_command,
-    BOT_PERSONALITIES
+    BOT_PERSONALITIES,
+    debate_manager,
 )
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 if not DISCORD_TOKEN or not DISCORD_TOKEN.strip():
@@ -261,15 +262,17 @@ async def process_ask(ctx, prompt: str):
     """
     try:
         logger.info("=" * 60)
-        logger.info("[1/5] Discordメッセージを受信")
-        logger.info(f"  ユーザー: {ctx.message.author}")
-        logger.info(f"  プロンプト: {prompt[:100]}...")
+        logger.info("📨 [1/5] Discordメッセージを受信")
+        logger.info(f"  👤 ユーザー: {ctx.message.author} (ID: {ctx.message.author.id})")
+        logger.info(f"  💬 チャンネル: {ctx.channel.name} (ID: {ctx.channel.id})")
+        logger.info(f"  📝 プロンプト:\n{prompt[:500]}")
+        logger.debug(f"  📝 プロンプト (全体):\n{prompt}")
         logger.info("=" * 60)
         
         # Discordの「入力中...」インジケーターを表示
-        logger.info("[2/5] Discordに'入力中...'を表示")
+        logger.info("⏳ [2/5] Discordに'入力中...'を表示")
         async with ctx.channel.typing():
-            logger.info("[3/5] cc-api (Claude Code) にリクエスト送信")
+            logger.info("📡 [3/5] cc-api (Claude Code) にリクエスト送信")
             logger.info("  → Claude CodeはSKILL.mdに従ってDiscord APIを使用可能")
             logger.info("  → allowed_tools: ['Read', 'Bash', 'Edit', 'discord']")
             
@@ -290,7 +293,7 @@ async def process_ask(ctx, prompt: str):
 - User ID: {ctx.message.author.id}
 - Message ID: {ctx.message.id}
 
-Discord APIエンドポイント: http://localhost:8082/v1/discord/action
+Discord APIエンドポイント: http://discord-bot:8080/v1/discord/action
 
 使用可能なアクション:
 - sendMessage: メッセージを送信（replyToで返信可能）
@@ -316,7 +319,7 @@ Discord APIエンドポイント: http://localhost:8082/v1/discord/action
                 ),
             )
 
-        logger.info(f"[4/5] cc-apiからレスポンス受信 (status: {response.status_code})")
+        logger.info(f"📥 [4/5] cc-apiからレスポンス受信 (status: {response.status_code})")
         logger.info("  → Claude CodeがDiscord APIを使用して直接メッセージを送信した可能性あり")
 
         if response.status_code == 200:
@@ -334,7 +337,7 @@ Discord APIエンドポイント: http://localhost:8082/v1/discord/action
 
             # 結果を分割送信（Discordの制限対応）
             # 元のメッセージに返信として送信
-            logger.info("[5/5] Claude Codeの応答をDiscordに送信（フォールバック）")
+            logger.info("📤 [5/5] Claude Codeの応答をDiscordに送信（フォールバック）")
             chunks = [result[i : i + 1900] for i in range(0, len(result), 1900)]
             logger.info(f"  分割数: {len(chunks)} chunk(s)")
             for i, chunk in enumerate(chunks):
