@@ -5,7 +5,7 @@ services:
       - "8081:8080"
     volumes:
       # Claude Code 設定ディレクトリ
-      - ~/.claude:/root/.claude
+      - ./data/.claude:/root/.claude
       # プロジェクトディレクトリをマウント
       - ./workspace:/workspace:rw
     environment:
