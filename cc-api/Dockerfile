@@ -2,8 +2,8 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 
 WORKDIR /app
 
-# Node.jsとsudoをインストール
-RUN apt-get update && apt-get install -y nodejs npm sudo && rm -rf /var/lib/apt/lists/*
+# Node.js、sudo、curlをインストール
+RUN apt-get update && apt-get install -y nodejs npm sudo curl && rm -rf /var/lib/apt/lists/*
 
 # cinderellaユーザーを作成し、sudoグループに追加（パスワードなしでsudo可能）
 RUN useradd -m -s /bin/bash cinderella && \
