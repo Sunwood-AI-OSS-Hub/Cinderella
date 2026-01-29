@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # ソースコードをコピー
 COPY bot.py .
+COPY handlers/ ./handlers/
 
 # 実行
 CMD ["python", "bot.py"]
