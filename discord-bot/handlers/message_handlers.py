@@ -310,6 +310,8 @@ async def handle_thread_create(req: BaseModel, bot) -> dict:
         message = await channel.fetch_message(int(req.messageId))
         thread = await message.create_thread(name=req.name)
 
+        # Discordではメッセージからスレッドを作成した場合、
+        # スレッドIDはメッセージIDと同じになる
         logger.info(f"Thread created successfully: {thread.id}")
         return {"success": True, "data": {"thread_id": str(thread.id), "name": thread.name}}
     except Exception as e:
@@ -352,8 +354,8 @@ async def handle_thread_reply(req: BaseModel, bot) -> dict:
         return {"success": False, "error": "threadId and content are required for threadReply"}
 
     try:
-        # スレッドを取得
-        thread = bot.get_channel(int(req.threadId))
+        # fetch_channelを使ってスレッドを取得（get_channelはキャッシュのみ）
+        thread = await bot.fetch_channel(int(req.threadId))
         if not thread or not hasattr(thread, 'parent_id'):
             return {"success": False, "error": f"Thread {req.threadId} not found"}
 
