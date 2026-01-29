@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # ソースコードをコピー
 COPY bot.py .
+COPY debate_handler.py .
 COPY handlers/ ./handlers/
 
 # 実行

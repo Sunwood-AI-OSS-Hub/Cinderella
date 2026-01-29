@@ -46,5 +46,12 @@ workspace/
 data/.claude/*
 !data/.claude/skills
 
+# Browser API data
+data/chrome-profile/*
+data/screenshots/*
+
 # Claude Code plan files
 plans/
+
+# tmp folder
+tmp/
