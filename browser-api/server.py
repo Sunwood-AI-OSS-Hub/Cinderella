@@ -60,8 +60,10 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Failed to stop browser on shutdown: {e}")
 
 
-# CORS設定
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+# CORS設定（デフォルトでは空リストで明示的な指定を要求）
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
+if not ALLOWED_ORIGINS or ALLOWED_ORIGINS == [""]:
+    ALLOWED_ORIGINS = []  # デフォルトでは許可しない
 
 app = FastAPI(
     title="Cinderella Browser API",
@@ -188,9 +190,11 @@ async def snapshot():
                             "name": name[:100] if name else ""
                         })
                         ref_id += 1
-                    except:
+                    except Exception as e:
+                        logger.debug(f"Failed to process element: {e}")
                         continue
-            except:
+            except Exception as e:
+                logger.debug(f"Failed to process selector {selector}: {e}")
                 continue
 
         return {

@@ -17,8 +17,10 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Local Claude Code HTTP Wrapper")
 
-# CORS設定（環境変数で制御）
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+# CORS設定（環境変数で制御、デフォルトでは空リストで明示的な指定を要求）
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
+if not ALLOWED_ORIGINS or ALLOWED_ORIGINS == [""]:
+    ALLOWED_ORIGINS = []  # デフォルトでは許可しない
 
 app.add_middleware(
     CORSMiddleware,
