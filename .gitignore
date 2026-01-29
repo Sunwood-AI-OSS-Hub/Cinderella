@@ -45,3 +45,6 @@ workspace/
 
 data/.claude/*
 !data/.claude/skills
+
+# Claude Code plan files
+plans/
