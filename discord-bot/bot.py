@@ -274,6 +274,11 @@ async def process_ask(ctx, prompt: str):
             logger.info("  → allowed_tools: ['Read', 'Bash', 'Edit', 'discord']")
             
             # プロンプトにDiscord操作のための情報を追加
+            # Guild IDの安全な取得（DMの場合は'N/A'）
+            guild_id = 'N/A'
+            if hasattr(ctx.channel, 'guild') and ctx.channel.guild:
+                guild_id = ctx.channel.guild.id
+
             enhanced_prompt = f"""{prompt}
 
 ---
@@ -281,7 +286,7 @@ async def process_ask(ctx, prompt: str):
 あなたは現在Discord上で動作しています。以下の情報を使用して、必要に応じてDiscord APIを呼び出してください。
 
 - Channel ID: {ctx.channel.id}
-- Guild ID: {ctx.channel.guild.id if hasattr(ctx.channel, 'guild') else 'N/A'}
+- Guild ID: {guild_id}
 - User ID: {ctx.message.author.id}
 - Message ID: {ctx.message.id}
 

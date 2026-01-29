@@ -93,7 +93,7 @@ async def handle_send_message(req: BaseModel, bot) -> dict:
 
         # 返信先メッセージが指定されている場合
         reference = None
-        if hasattr(req, 'replyTo') and req.replyTo:
+        if req.replyTo:
             try:
                 reply_message = await channel.fetch_message(int(req.replyTo))
                 reference = discord.MessageReference(message_id=reply_message.id, channel_id=channel.id, guild_id=channel.guild.id if hasattr(channel, 'guild') else None)
