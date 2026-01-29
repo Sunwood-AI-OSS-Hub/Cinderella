@@ -2,20 +2,32 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 
 WORKDIR /app
 
-# Node.jsをインストール（Claude Codeのnpmインストールに必要）
-RUN apt-get update && apt-get install -y nodejs npm && rm -rf /var/lib/apt/lists/*
+# Node.jsとsudoをインストール
+RUN apt-get update && apt-get install -y nodejs npm sudo && rm -rf /var/lib/apt/lists/*
+
+# cinderellaユーザーを作成し、sudoグループに追加（パスワードなしでsudo可能）
+RUN useradd -m -s /bin/bash cinderella && \
+    usermod -aG sudo cinderella && \
+    echo 'cinderella ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/cinderella && \
+    chmod 440 /etc/sudoers.d/cinderella
 
 # Claude Codeをインストール
 RUN npm install -g @anthropic-ai/claude-code
 
-# workspace ディレクトリを作成し、全員許可に設定
-RUN mkdir -p /workspace && chmod 777 /workspace
+# workspace ディレクトリを作成し、cinderellaが使えるように設定
+RUN mkdir -p /workspace && chown -R cinderella:cinderella /workspace
 
 # 依存関係をインストール
 RUN uv pip install --system fastapi uvicorn[standard] pydantic
 
 # ソースコードをコピー（cc-apiディレクトリからコピー）
 COPY server.py .
+
+# アプリケーションディレクトリの所有権をcinderellaに変更
+RUN chown -R cinderella:cinderella /app
+
+# cinderellaユーザーに切り替え
+USER cinderella
 
 # ポートを公開
 EXPOSE 8080
