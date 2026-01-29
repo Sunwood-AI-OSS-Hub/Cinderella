@@ -8,6 +8,7 @@ FastAPI サーバーが正常に動作しているか確認します。
 
 import requests
 import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -257,6 +258,128 @@ def test_dice_roll(reporter: TestReporter):
     reporter.add_result("サイコロアプリテスト", status, details)
 
 
+def test_cinderella_user_config(reporter: TestReporter):
+    """cinderella ユーザー設定を確認"""
+    print("=== cinderella ユーザー設定テスト ===")
+    details = ""
+    status = "PASS"
+
+    try:
+        # コンテナ名を取得（docker-composeで起動している想定）
+        container_name = "cinderella-cc-api-1"
+
+        # 実行ユーザーを確認
+        result = subprocess.run(
+            ["docker", "exec", container_name, "whoami"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        whoami = result.stdout.strip()
+        print(f"実行ユーザー: {whoami}")
+
+        if whoami != "cinderella":
+            status = "FAIL"
+            details += f"- **実行ユーザー**: {whoami}（期待: cinderella）\n"
+            print(f"❌ 実行ユーザーが cinderella ではありません: {whoami}\n")
+            reporter.add_result("cinderella ユーザー設定", status, details)
+            return
+
+        details += f"- **実行ユーザー**: {whoami} ✔️\n"
+
+        # ユーザー詳細情報を確認
+        result = subprocess.run(
+            ["docker", "exec", container_name, "id"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        id_info = result.stdout.strip()
+        print(f"ユーザー情報: {id_info}")
+
+        # sudo グループに所属しているか確認
+        if "sudo" not in id_info:
+            status = "FAIL"
+            details += f"- **エラー**: sudo グループに所属していません\n"
+            details += f"- **ユーザー情報**: `{id_info}`\n"
+            print("❌ sudo グループに所属していません\n")
+        else:
+            details += f"- **sudo グループ**: 所属済み ✔️\n"
+
+        # パスワードなし sudo を確認
+        result = subprocess.run(
+            ["docker", "exec", container_name, "sudo", "whoami"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        sudo_result = result.stdout.strip()
+        print(f"sudo whoami: {sudo_result}")
+
+        if sudo_result != "root":
+            status = "FAIL"
+            details += f"- **パスワードなし sudo**: 失敗（結果: {sudo_result}）\n"
+            print("❌ パスワードなし sudo が失敗しました\n")
+        else:
+            details += f"- **パスワードなし sudo**: 動作確認 ✔️\n"
+
+        # claude コマンドのパスを確認
+        result = subprocess.run(
+            ["docker", "exec", container_name, "which", "claude"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        claude_path = result.stdout.strip()
+        print(f"claude コマンド: {claude_path}")
+
+        if result.returncode != 0:
+            status = "FAIL"
+            details += f"- **claude コマンド**: 見つかりません\n"
+            print("❌ claude コマンドが見つかりません\n")
+        else:
+            details += f"- **claude コマンド**: {claude_path} ✔️\n"
+
+        # Python パッケージを確認
+        result = subprocess.run(
+            ["docker", "exec", container_name, "python", "-c",
+             "import fastapi, uvicorn, pydantic; print('OK')"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        pkg_check = result.stdout.strip()
+        print(f"Python パッケージ: {pkg_check}")
+
+        if pkg_check != "OK":
+            status = "FAIL"
+            details += f"- **Python パッケージ**: インポートエラー\n"
+            print("❌ Python パッケージのインポートに失敗しました\n")
+        else:
+            details += f"- **Python パッケージ**: fastapi, uvicorn, pydantic OK ✔️\n"
+
+        if status == "PASS":
+            print("✅ cinderella ユーザー設定テスト成功\n")
+        else:
+            print("⚠️ cinderella ユーザー設定テスト完了（一部失敗）\n")
+
+    except subprocess.TimeoutExpired:
+        status = "FAIL"
+        details += f"- **エラー**: コマンド実行がタイムアウトしました\n"
+        print("❌ コマンド実行がタイムアウトしました\n")
+    except FileNotFoundError:
+        status = "FAIL"
+        details += f"- **エラー**: docker コマンドが見つかりません\n"
+        details += f"- **確認**: Docker がインストールされているか確認してください\n"
+        print("❌ docker コマンドが見つかりません\n")
+    except Exception as e:
+        status = "FAIL"
+        details += f"- **エラー**: {e}\n"
+        print(f"❌ cinderella ユーザー設定テスト失敗: {e}\n")
+
+    reporter.add_result("cinderella ユーザー設定", status, details)
+
+
 if __name__ == "__main__":
     print("🧪 Cinderella API テスト開始\n")
 
@@ -264,6 +387,7 @@ if __name__ == "__main__":
 
     try:
         test_health(reporter)
+        test_cinderella_user_config(reporter)
         test_simple_prompt(reporter)
         test_with_bash_tool(reporter)
         test_dice_roll(reporter)
