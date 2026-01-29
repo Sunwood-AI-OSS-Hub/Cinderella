@@ -45,3 +45,5 @@ workspace/
 
 data/.claude/*
 !data/.claude/skills
+
+plans/
