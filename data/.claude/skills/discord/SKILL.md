@@ -1,21 +1,21 @@
 ---
 name: discord
 description: Use when you need to control Discord from Cinderella via the discord tool: send messages, react, edit/delete messages, manage threads/pins, fetch member/role/channel/emoji info, read messages, or check permissions in Discord channels.
-metadata: {"cinderella":{"emoji":"💬","endpoint":"http://localhost:8082/v1/discord/action"}}
+metadata: {"cinderella":{"emoji":"💬","endpoint":"http://discord-bot:8080/v1/discord/action","endpoint_local":"http://localhost:8082/v1/discord/action"}}
 ---
 
 # Discord Actions for Cinderella
 
 ## Overview
 
-Use `discord` to manage Discord operations from Claude Code via Cinderella's local API. The API is compatible with Moltbot's format and runs on `http://localhost:8082/v1/discord/action`.
+Use `discord` to manage Discord operations from Claude Code via Cinderella's local API. The API is compatible with Moltbot's format and runs on `http://discord-bot:8080/v1/discord/action` from within containers.
 
 ## Supported Actions
 
 All actions are executed via curl to the local API endpoint:
 
 ```bash
-curl -s http://localhost:8082/v1/discord/action \
+curl -s http://discord-bot:8080/v1/discord/action \
   -X POST \
   -H "Content-Type: application/json" \
   -d '{"action":"...","...":"..."}'
