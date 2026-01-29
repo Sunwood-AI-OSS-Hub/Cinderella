@@ -11,11 +11,8 @@ RUN useradd -m -s /bin/bash cinderella && \
     echo 'cinderella ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/cinderella && \
     chmod 440 /etc/sudoers.d/cinderella
 
-# Claude Codeをインストール
+# Claude Codeをインストール（rootでインストール後、所有権を変更）
 RUN npm install -g @anthropic-ai/claude-code
-
-# workspace ディレクトリを作成し、cinderellaが使えるように設定
-RUN mkdir -p /workspace && chown -R cinderella:cinderella /workspace
 
 # 依存関係をインストール
 RUN uv pip install --system fastapi uvicorn[standard] pydantic
@@ -25,6 +22,14 @@ COPY server.py .
 
 # アプリケーションディレクトリの所有権をcinderellaに変更
 RUN chown -R cinderella:cinderella /app
+
+# workspace ディレクトリを作成し、cinderellaが使えるように設定
+RUN mkdir -p /workspace && chown -R cinderella:cinderella /workspace
+
+# cinderellaユーザーに切り替える前に、.claudeディレクトリを準備
+USER root
+RUN mkdir -p /home/cinderella/.claude && \
+    chown -R cinderella:cinderella /home/cinderella/.claude
 
 # cinderellaユーザーに切り替え
 USER cinderella
