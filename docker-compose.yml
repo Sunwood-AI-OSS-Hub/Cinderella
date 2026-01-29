@@ -25,8 +25,29 @@ services:
       - ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air
       - ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7
       - ANTHROPIC_DEFAULT_OPUS_MODEL=glm-4.7
+
+      # Claude Code オプション
+      # --dangerously-skip-permissions を有効にするかどうか
+      - CLAUDE_SKIP_PERMISSIONS=${CLAUDE_SKIP_PERMISSIONS}
     networks:
       - cinderella-network
+
+  # Browser API
+  browser-api:
+    build:
+      context: ./browser-api
+    ports:
+      - "8083:8000"    # API
+      - "5900:5900"    # VNC
+      - "7900:7900"    # noVNC
+    volumes:
+      - ./data/screenshots:/app/screenshots
+      - ./data/chrome-profile:/app/chrome-profile
+    environment:
+      - ALLOWED_ORIGINS=*
+    networks:
+      - cinderella-network
+    restart: unless-stopped
 
   # Discord Bot
   discord-bot:
