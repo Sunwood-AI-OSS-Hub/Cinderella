@@ -1,21 +1,21 @@
 ---
 name: discord
 description: Use when you need to control Discord from Cinderella via the discord tool: send messages, react, edit/delete messages, manage threads/pins, fetch member/role/channel/emoji info, read messages, or check permissions in Discord channels.
-metadata: {"cinderella":{"emoji":"💬","endpoint":"http://localhost:8082/v1/discord/action"}}
+metadata: {"cinderella":{"emoji":"💬","endpoint":"http://discord-bot:8080/v1/discord/action","endpoint_local":"http://localhost:8082/v1/discord/action"}}
 ---
 
 # Discord Actions for Cinderella
 
 ## Overview
 
-Use `discord` to manage Discord operations from Claude Code via Cinderella's local API. The API is compatible with Moltbot's format and runs on `http://localhost:8082/v1/discord/action`.
+Use `discord` to manage Discord operations from Claude Code via Cinderella's local API. The API is compatible with Moltbot's format and runs on `http://discord-bot:8080/v1/discord/action` from within containers.
 
 ## Supported Actions
 
 All actions are executed via curl to the local API endpoint:
 
 ```bash
-curl -s http://localhost:8082/v1/discord/action \
+curl -s http://discord-bot:8080/v1/discord/action \
   -X POST \
   -H "Content-Type: application/json" \
   -d '{"action":"...","...":"..."}'
@@ -25,7 +25,7 @@ curl -s http://localhost:8082/v1/discord/action \
 
 - For reactions: `channelId`, `messageId`, and an `emoji`.
 - For fetchMessage: `guildId`, `channelId`, and `messageId`.
-- For sendMessage: `channelId` and `content`.
+- For sendMessage: `channelId` and `content`. Optional: `replyTo` for replying to a specific message.
 - For threads: `channelId`, optional `messageId` (for create), `threadId` (for reply), or `guildId` (for list).
 - For member info: `guildId` and `userId`.
 - For role/emoji/channel info: `guildId` or `channelId`.
@@ -81,6 +81,64 @@ curl -s http://localhost:8082/v1/discord/action \
 ```json
 {"success": true, "data": {"message_id": "123456789012345678"}}
 ```
+
+### Send a reply message
+
+特定のメッセージに返信（リプライ）として送信します。
+
+```json
+{
+  "action": "sendMessage",
+  "channelId": "1234567890",
+  "content": "This is a reply message!",
+  "replyTo": "0987654321"
+}
+```
+
+**Response:**
+```json
+{"success": true, "data": {"message_id": "123456789012345679"}}
+```
+
+## Debate Functionality
+
+The Discord bot supports bot-to-bot debates through the `!debate` command.
+
+### Starting a debate
+
+Users can initiate a debate using:
+
+```
+!debate <トピック> [--personality=<type>]
+```
+
+**Available personalities:**
+- `optimist` - 楽観派AI (positive/constructive)
+- `pessimist` - 慎重派AI (careful/critical)
+- `neutral` - 中立派AI (objective/balanced)
+
+**Examples:**
+```
+!debate AIと仕事
+!debate リモートワークの是非 --personality=optimist
+!debate 気候変動対策 --personality=pessimist
+```
+
+### How it works
+
+1. When `!debate` is used, the bot starts a debate context for that channel
+2. The bot responds to the topic using its assigned personality
+3. Other bots in the channel can participate by responding to messages
+4. The debate automatically concludes after 5 turns per bot or when consensus is reached
+5. A summary message is posted when the debate ends
+
+### Debate behavior
+
+- Bots only respond to other bots' messages during debates
+- Each bot has a personality that influences their responses
+- The debate context is channel-specific
+- Debates automatically end to prevent infinite loops
+- Summary keywords trigger conclusion: "まとめ", "ご清聴", "結論", "終了"
 
 ### Edit a message
 
