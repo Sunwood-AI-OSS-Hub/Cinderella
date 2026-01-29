@@ -9,7 +9,8 @@ CINDERELLA_URL = os.getenv("CINDERELLA_URL", "http://cc-api:8080")
 
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+# メンションまたは ! で反応
+bot = commands.Bot(command_prefix=commands.when_mentioned_or("!"), intents=intents)
 
 
 @bot.command()
@@ -83,15 +84,15 @@ async def help_command(ctx):
 **Cinderella Discord Bot** 🔮
 
 **コマンド一覧:**
-• `!ask <質問>` - Claudeに質問する
-• `!ping` - 動作確認
-• `!info` - Bot情報
+• `!ask <質問>` または `@BotName ask <質問>` - Claudeに質問する
+• `!ping` または `@BotName ping` - 動作確認
+• `!info` または `@BotName info` - Bot情報
 
 **使用例:**
 ```
 !ask 現在の日時を表示して
+@Cinderella ask 今日の天気は？
 !ping
-!info
 ```
 """
     await ctx.send(help_text)
