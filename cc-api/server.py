@@ -35,6 +35,9 @@ class RunRequest(BaseModel):
     allowed_tools: List[str] = Field(
         default_factory=lambda: ["Read"], description='例: ["Read","Bash","Edit"]'
     )
+    skip_permissions: bool = Field(
+        False, description="--dangerously-skip-permissions を使用するか"
+    )
 
 
 class RunResponse(BaseModel):
@@ -49,39 +52,83 @@ def health():
 
 @app.post("/v1/claude/run", response_model=RunResponse)
 def run(req: RunRequest):
-    # 重要: ローカル用途でも、許可ツールは最小から。
-    # 空リストの場合はデフォルトの["Read"]を使用
-    allowed_tools = req.allowed_tools if req.allowed_tools else ["Read"]
-    allowed_tools_str = ",".join(allowed_tools)
+    # --dangerously-skip-permissions を使用するかどうか
+    # 環境変数 CLAUDE_SKIP_PERMISSIONS またはリクエストパラメータで制御
+    skip_permissions_env = os.getenv("CLAUDE_SKIP_PERMISSIONS", "").lower() in ("1", "true", "yes")
+    skip_permissions = skip_permissions_env or req.skip_permissions
+
+    # システムプロンプト：discordスキルを使うように指示
+    system_prompt = """discord skills を使用してユーザーに返信して。sudo を パスワード無しで使用できるので必要であれば使用して。また、パッケージも必要であればインストールして。
+"""
 
     cmd = [
         "claude",
-        "-p",
-        req.prompt,
+        "--print",
+        "--append-system-prompt",
+        system_prompt,
         "--output-format",
         "json",
-        "--allowedTools",
-        allowed_tools_str,
     ]
 
-    logger.info(f"Executing command: claude -p [REDACTED] --output-format json --allowedTools {allowed_tools_str}")
-    logger.info(f"Working directory: {req.cwd or 'default'}")
-    logger.info(f"Timeout: {req.timeout_sec} seconds")
-    logger.debug(f"Prompt (first 100 chars): {req.prompt[:100]}")
+    # skip_permissions が有効でない場合のみ、allowedTools を追加
+    allowed_tools_str = ""
+    if not skip_permissions:
+        # 重要: ローカル用途でも、許可ツールは最小から。
+        # 空リストの場合はデフォルトの["Read"]を使用
+        allowed_tools = req.allowed_tools if req.allowed_tools else ["Read"]
+        allowed_tools_str = ",".join(allowed_tools)
+        cmd.extend(["--allowedTools", allowed_tools_str])
+
+    # skip_permissions が有効な場合はフラグを追加
+    if skip_permissions:
+        cmd.append("--dangerously-skip-permissions")
+
+    skip_perms_info = " --dangerously-skip-permissions" if skip_permissions else ""
+    allowed_tools_info = f" --allowedTools {allowed_tools_str}" if not skip_permissions else ""
+
+    # ログ出力（プロンプトをより多く表示）
+    logger.info("=" * 60)
+    logger.info("📝 Claude Code実行リクエスト")
+    logger.info("=" * 60)
+    logger.info(f"🔧 コマンド: claude --print --append-system-prompt <...> <prompt> --output-format json{allowed_tools_info}{skip_perms_info}")
+    logger.info(f"📁 作業ディレクトリ: {req.cwd or 'default'}")
+    logger.info(f"⏱️ タイムアウト: {req.timeout_sec}秒")
+    logger.info(f"🔓 Skip permissions: {skip_permissions}")
+    logger.info(f"📝 プロンプト (最初の500文字):\n{req.prompt[:500]}")
+    logger.debug(f"📝 プロンプト (全体):\n{req.prompt}")
+    logger.info("=" * 60)
 
     try:
+        # -pを使ってプロンプトを渡す
         p = subprocess.run(
-            cmd,
+            cmd + [req.prompt],
             cwd=req.cwd,
             capture_output=True,
             text=True,
             timeout=req.timeout_sec,
             check=False,
         )
-        logger.debug(f"Command exit code: {p.returncode}")
-        logger.debug(f"Command stdout (first 500 chars): {p.stdout[:500]}")
+
+        # 実行結果を詳細にログ
+        logger.info(f"📊 実行結果")
+        logger.info(f"   - Exit code: {p.returncode}")
+
+        try:
+            data = json.loads(p.stdout)
+            result = data.get("result", "")
+            result_preview = result[:300] + "..." if len(result) > 300 else result
+            logger.info(f"   - 結果プレビュー:\n{result_preview}")
+
+            # 使用ツールを表示
+            usage = data.get("usage", {})
+            if usage:
+                logger.info(f"   - 使用トークン: {usage.get('input_tokens', 0)} input / {usage.get('output_tokens', 0)} output")
+        except:
+            logger.info(f"   - 出力 (最初の500文字): {p.stdout[:500]}")
+
         if p.stderr:
-            logger.debug(f"Command stderr: {p.stderr}")
+            logger.debug(f"   - Stderr: {p.stderr}")
+
     except FileNotFoundError as e:
         logger.error(f"claude command not found: {e}")
         raise HTTPException(500, "claude コマンドが見つかりません（PATHを確認）")
@@ -111,5 +158,7 @@ def run(req: RunRequest):
             {"error": "claude のstdoutがJSONとして解析できませんでした", "stdout": p.stdout[:2000]},
         )
 
-    logger.info("Command executed successfully")
+    logger.info("=" * 60)
+    logger.info("✅ コマンド実行成功")
+    logger.info("=" * 60)
     return RunResponse(exit_code=p.returncode, stdout_json=data)
