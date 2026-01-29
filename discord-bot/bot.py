@@ -36,6 +36,14 @@ from handlers import (
     handle_role_add, handle_role_remove,
     handle_timeout, handle_kick, handle_ban,
 )
+
+# 議論機能ハンドラーをインポート
+from debate_handler import (
+    DebateManager,
+    process_debate_message,
+    handle_debate_command,
+    BOT_PERSONALITIES
+)
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 if not DISCORD_TOKEN or not DISCORD_TOKEN.strip():
     raise ValueError("DISCORD_TOKEN is required and cannot be empty")
@@ -84,6 +92,7 @@ class DiscordActionRequest(BaseModel):
     # sendMessage用
     to: Optional[str] = Field(None, description="送信先 (channel:<id> または user:<id>)")
     content: Optional[str] = Field(None, description="メッセージ内容")
+    replyTo: Optional[str] = Field(None, description="返信先メッセージID")
     # react用
     emoji: Optional[str] = Field(None, description="リアクション絵文字")
     # スレッド用
@@ -163,11 +172,11 @@ async def on_message(message):
 
         # プロンプトがある場合のみ処理
         if content:
-            await message.add_reaction("⏳")
             # Context-likeオブジェクトを作成してprocess_askを呼ぶ
             class MessageContext:
                 def __init__(self, msg):
                     self.message = msg
+                    self.channel = msg.channel  # channel属性を追加
                 async def send(self, *args, **kwargs):
                     return await self.message.channel.send(*args, **kwargs)
 
@@ -188,53 +197,139 @@ async def ask(ctx, *, prompt: str = None):
         await ctx.send("❌ 質問内容が空だよ……何か聞きたいことを入力してね！")
         return
 
-    # リアクションで応答
-    await ctx.message.add_reaction("⏳")
-
     # 非同期で処理（タスクへの参照を保持して例外を捕捉）
+    # リアクションはprocess_ask内で管理される
     task = bot.loop.create_task(process_ask(ctx, prompt))
     task.add_done_callback(lambda t: t.exception() and logger.error(f"Task error: {t.exception()}"))
 
 
-async def process_ask(ctx, prompt: str):
-    """Cinderella APIを呼び出して結果を返す"""
+@bot.command()
+async def debate(ctx, *, topic: str = None):
+    """Bot間議論を開始するコマンド
+    
+    使用方法:
+    !debate <トピック> [--personality=<type>]
+    
+    例:
+    !debate AIと仕事
+    !debate リモートワークの是非 --personality=optimist
+    """
+    if not topic or not topic.strip():
+        await ctx.send("❌ 議論のトピックを入力してね！\n例: `!debate AIと仕事`")
+        return
+    
+    # パーソナリティを抽出（デフォルトはoptimist）
+    personality = "optimist"
+    if "--personality=" in topic:
+        parts = topic.split("--personality=")
+        topic = parts[0].strip()
+        personality = parts[1].split()[0].strip()
+    
+    # 有効なパーソナリティかチェック
+    if personality not in BOT_PERSONALITIES:
+        await ctx.send(f"❌ 無効なパーソナリティです: {personality}\n選択肢: {', '.join(BOT_PERSONALITIES.keys())}")
+        return
+    
+    # リアクションで応答
+    await ctx.message.add_reaction("💬")
+    
+    # 議論を開始
     try:
-        logger.info("Processing ask command")
-        loop = asyncio.get_running_loop()
-        response = await loop.run_in_executor(
-            None,
-            lambda: requests.post(
-                f"{CINDERELLA_URL}/v1/claude/run",
-                json={
-                    "prompt": prompt,
-                    "cwd": "/workspace",
-                    "allowed_tools": ["Read", "Bash", "Edit"],
-                    "timeout_sec": 300,
-                },
-                timeout=310,
-            ),
-        )
+        await handle_debate_command(ctx, topic, personality)
+    except Exception as e:
+        logger.error(f"Error in debate command: {e}", exc_info=True)
+        await ctx.send(f"❌ 議論の開始中にエラーが発生しました: {e}")
 
-        logger.info(f"API response status: {response.status_code}")
+
+async def process_ask(ctx, prompt: str):
+    """Cinderella APIを呼び出して結果を返す
+    
+    重要: Claude CodeはSKILL.mdに従って、自分でDiscord APIを使ってメッセージを送信する
+    discord-botは単なるAPIゲートウェイとして機能し、Claude Codeが直接Discordを操作する
+    """
+    try:
+        logger.info("=" * 60)
+        logger.info("[1/5] Discordメッセージを受信")
+        logger.info(f"  ユーザー: {ctx.message.author}")
+        logger.info(f"  プロンプト: {prompt[:100]}...")
+        logger.info("=" * 60)
+        
+        # Discordの「入力中...」インジケーターを表示
+        logger.info("[2/5] Discordに'入力中...'を表示")
+        async with ctx.channel.typing():
+            logger.info("[3/5] cc-api (Claude Code) にリクエスト送信")
+            logger.info("  → Claude CodeはSKILL.mdに従ってDiscord APIを使用可能")
+            logger.info("  → allowed_tools: ['Read', 'Bash', 'Edit', 'discord']")
+            
+            # プロンプトにDiscord操作のための情報を追加
+            enhanced_prompt = f"""{prompt}
+
+---
+【Discord操作情報】
+あなたは現在Discord上で動作しています。以下の情報を使用して、必要に応じてDiscord APIを呼び出してください。
+
+- Channel ID: {ctx.channel.id}
+- Guild ID: {ctx.channel.guild.id if hasattr(ctx.channel, 'guild') else 'N/A'}
+- User ID: {ctx.message.author.id}
+- Message ID: {ctx.message.id}
+
+Discord APIエンドポイント: http://localhost:8082/v1/discord/action
+
+使用可能なアクション:
+- sendMessage: メッセージを送信（replyToで返信可能）
+- react: リアクションを追加
+- readMessages: メッセージを読み取り
+- その他多数（SKILL.md参照）
+
+メッセージを送信する場合は、replyToに元のメッセージIDを指定して返信として送信してください。
+"""
+            
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: requests.post(
+                    f"{CINDERELLA_URL}/v1/claude/run",
+                    json={
+                        "prompt": enhanced_prompt,
+                        "cwd": "/workspace",
+                        "allowed_tools": ["Read", "Bash", "Edit", "discord"],
+                        "timeout_sec": 300,
+                    },
+                    timeout=310,
+                ),
+            )
+
+        logger.info(f"[4/5] cc-apiからレスポンス受信 (status: {response.status_code})")
+        logger.info("  → Claude CodeがDiscord APIを使用して直接メッセージを送信した可能性あり")
 
         if response.status_code == 200:
             data = response.json()
             result = data["stdout_json"].get("result", "")
             logger.debug(f"Result from API (first 200 chars): {result[:200]}")
+            
             if not result:
-                await ctx.send("……あれ、Claudeからの応答が空だったみたい")
-                await update_reaction(ctx.message, "❌")
+                logger.info("  → Claude Codeからの応答が空（Discord APIで直接送信済みの可能性）")
+                # Claude Codeが既にDiscord APIで送信した場合、ここでは何もしない
+                logger.info("=" * 60)
+                logger.info("[完了] Claude CodeがDiscord APIで直接送信した可能性あり ✅")
+                logger.info("=" * 60)
                 return
 
             # 結果を分割送信（Discordの制限対応）
+            # 元のメッセージに返信として送信
+            logger.info("[5/5] Claude Codeの応答をDiscordに送信（フォールバック）")
             chunks = [result[i : i + 1900] for i in range(0, len(result), 1900)]
-            logger.info(f"Sending {len(chunks)} chunk(s) to Discord")
+            logger.info(f"  分割数: {len(chunks)} chunk(s)")
             for i, chunk in enumerate(chunks):
-                logger.debug(f"Sending chunk {i+1}/{len(chunks)} (length: {len(chunk)})")
-                await ctx.send(f"```\n{chunk}\n```")
+                logger.info(f"  送信 chunk {i+1}/{len(chunks)} (length: {len(chunk)})")
+                await ctx.send(chunk, reference=ctx.message)
+                logger.info(f"  ✓ chunk {i+1} 送信完了")
 
             # 成功時にリアクションを更新
             await update_reaction(ctx.message, "✅")
+            logger.info("=" * 60)
+            logger.info("[完了] 処理完了 ✅")
+            logger.info("=" * 60)
         else:
             error_detail = ""
             try:
@@ -260,9 +355,8 @@ async def process_ask(ctx, prompt: str):
 
 
 async def update_reaction(message, new_emoji):
-    """リアクションを更新する（⏳を削除して新しい絵文字を追加）"""
+    """リアクションを更新する（新しい絵文字を追加）"""
     try:
-        await message.remove_reaction("⏳", bot.user)
         await message.add_reaction(new_emoji)
     except Exception as e:
         logger.error(f"Failed to update reaction: {e}")
@@ -282,6 +376,7 @@ async def help_command(ctx):
 
 **コマンド一覧:**
 • `!ask <質問>` - Claudeに質問する
+• `!debate <トピック>` - Bot間議論を開始
 • `@BotName <質問>` - メンションだけで質問（「ask」は不要）
 • `!ping` - 動作確認
 • `!info` - Bot情報
@@ -289,10 +384,14 @@ async def help_command(ctx):
 **使用例:**
 ```
 !ask 現在の日時を表示して
+!debate AIと仕事
 @Cinderella 今日の天気は？
-@CA1-Mirelle-Flyio 2+2は？
 !ping
 ```
+
+**議論機能について:**
+`!debate` コマンドで2人のBotが議論を行います。
+ターン数が5回に達するか、議論が収束すると自動的にまとめが作成されます。
 """
     await ctx.send(help_text)
 
