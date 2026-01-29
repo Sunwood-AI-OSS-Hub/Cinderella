@@ -4,24 +4,26 @@ Discord Bot APIのテストスイートと結果のドキュメント
 
 ## テスト結果
 
-### Message Handlers (15 tests)
-- **結果**: 15/15 パス（完璧）
+### Message Handlers (17 tests)
+- **結果**: 17/17 パス（完璧）
 - **テスト項目**:
   1. メッセージ送信 (sendMessage)
-  2. リアクション (react)
-  3. リアクション一覧 (reactions)
-  4. メッセージ編集 (editMessage)
-  5. メッセージ削除 (deleteMessage)
-  6. メッセージ読み取り (readMessages)
-  7. メッセージ取得 (fetchMessage)
-  8. ピン留め (pinMessage)
-  9. ピン一覧 (listPins)
-  10. スレッド作成 (threadCreate)
-  11. スレッド一覧 (threadList)
-  12. スレッド返信 (threadReply)
-  13. スタンプ送信 (sticker)
-  14. 投票作成 (poll)
-  15. メッセージ検索 (searchMessages)
+  2. メッセージ返信 (sendMessage with replyTo) ⭐ 新機能
+  3. リアクション (react)
+  4. リアクション一覧 (reactions)
+  5. メッセージ編集 (editMessage)
+  6. メッセージ削除 (deleteMessage)
+  7. メッセージ読み取り (readMessages)
+  8. メッセージ取得 (fetchMessage)
+  9. ピン留め (pinMessage)
+  10. ピン一覧 (listPins)
+  11. スレッド作成 (threadCreate)
+  12. スレッド一覧 (threadList)
+  13. スレッド返信 (threadReply)
+  14. スタンプ送信 (sticker)
+  15. 投票作成 (poll)
+  16. メッセージ検索 (searchMessages)
+  17. 返信メッセージ削除 (deleteMessage)
 
 ### Channel Handlers (10 tests)
 - **結果**: 10/10 パス（完璧）
@@ -86,10 +88,10 @@ python test_all.py <channel_id> <guild_id> <user_id>
 
 ## 実装されたアクション一覧
 
-すべて36個のアクションが実装されています。
+すべて38個のアクションが実装されています。
 
-### Message Handlers (15)
-react, reactions, sendMessage, editMessage, deleteMessage, readMessages, fetchMessage, pinMessage, listPins, threadCreate, threadList, threadReply, sticker, poll, searchMessages
+### Message Handlers (17)
+react, reactions, sendMessage, **sendMessage with replyTo** ⭐, editMessage, deleteMessage, readMessages, fetchMessage, pinMessage, listPins, threadCreate, threadList, threadReply, sticker, poll, searchMessages
 
 ### Channel Handlers (10)
 channelInfo, channelList, permissions, channelCreate, categoryCreate, channelEdit, channelMove, channelDelete, categoryEdit, categoryDelete
