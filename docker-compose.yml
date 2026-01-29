@@ -8,7 +8,7 @@ services:
       # Claude Code 設定ディレクトリ（cinderellaユーザー用）
       - ./data/.claude:/home/cinderella/.claude
       # プロジェクトディレクトリをマウント
-      - ./workspace:/workspace:rw
+      - ./config/bot1/workspace:/workspace:rw
     environment:
       # ========================================
       # API設定（どちらか一方を有効にしてください）
@@ -35,6 +35,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8082:8080"  # Discord Bot API
+
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - CINDERELLA_URL=http://cc-api:8080
