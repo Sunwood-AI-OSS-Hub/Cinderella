@@ -26,8 +26,14 @@ Pre-configured to work with GLM models (Zhipu AI).
 **Architecture:**
 
 ```
-Discord User → Discord Bot → cc-api (HTTP) → Claude Code CLI
+Discord User ⇄ Discord Bot (FastAPI) ⇄ cc-api (HTTP) ⇄ Claude Code CLI
+                   ↓
+            :8082 (HTTP API)
 ```
+
+Cinderella supports **bidirectional communication**:
+- **User → AI**: Ask questions via Discord or HTTP API
+- **AI → User**: Send notifications from Claude Code to Discord via discord-bot API
 
 ## Setup
 
@@ -113,12 +119,18 @@ If you want to use Claude via Discord:
    - Go to "Bot" section and create a bot
    - Copy the bot token
 
-2. **Add DISCORD_TOKEN to `.env`**
+2. **Add Environment Variables to `.env`**
 
-Add the following line to your `.env` file:
+Add the following lines to your `.env` file:
 
 ```bash
+# Required: Discord Bot Token
 DISCORD_TOKEN=your_discord_bot_token_here
+
+# Optional: API Key for endpoint authentication
+# If set, requests to /v1/discord/action must include this key in the x-api-key header
+# If not set, the endpoint is accessible without authentication
+DISCORD_BOT_API_KEY=your_discord_bot_api_key_here
 ```
 
 3. **Start Services**
@@ -197,6 +209,102 @@ Executes Claude Code.
 }
 ```
 
+### `POST /v1/discord/action`
+
+Execute Discord actions (Moltbot-compatible) from Claude Code.
+
+**Authentication (Optional):**
+
+If `DISCORD_BOT_API_KEY` is set in your environment variables, requests must include the API key in the `x-api-key` header:
+
+```bash
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
+```
+
+If `DISCORD_BOT_API_KEY` is not set, the endpoint is accessible without authentication.
+
+**Supported Actions:**
+
+- `react` - Add reaction to a message
+- `sendMessage` - Send a new message
+- `editMessage` - Edit an existing message
+- `deleteMessage` - Delete a message
+
+**Request Examples:**
+
+```json
+// React to a message
+{
+  "action": "react",
+  "channelId": "1234567890",
+  "messageId": "0987654321",
+  "emoji": "✅"
+}
+
+// Send a message
+{
+  "action": "sendMessage",
+  "channelId": "1234567890",
+  "content": "Hello from Claude Code!"
+}
+
+// Edit a message
+{
+  "action": "editMessage",
+  "channelId": "1234567890",
+  "messageId": "0987654321",
+  "content": "Updated message"
+}
+
+// Delete a message
+{
+  "action": "deleteMessage",
+  "channelId": "1234567890",
+  "messageId": "0987654321"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Reaction added"
+  }
+}
+```
+
+**Usage from Claude Code:**
+
+Claude Code can execute Discord actions using curl:
+
+```bash
+# React to a message (with API key authentication)
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
+
+# Send a message (with API key authentication)
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"sendMessage","channelId":"123","content":"Hello from Claude Code!"}'
+
+# Without authentication (if DISCORD_BOT_API_KEY is not set)
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
+```
+
 ## GLM Model Configuration
 
 When using Z.AI (GLM models), you can configure the following settings in `.env` or environment variables:
@@ -243,7 +351,8 @@ docker compose logs --tail=100 -f
 
 ## Ports
 
-- **8081**: HTTP server
+- **8081**: cc-api HTTP server
+- **8082**: discord-bot API server (for Claude Code → Discord actions)
 
 ## File Structure
 
@@ -253,7 +362,7 @@ cinderella/
 │   ├── server.py               # FastAPI server
 │   └── Dockerfile              # API server container
 ├── discord-bot/                # Discord Bot interface
-│   ├── bot.py                  # Discord Bot本体
+│   ├── bot.py                  # Discord Bot本体 + FastAPI
 │   ├── Dockerfile              # Bot container
 │   └── requirements.txt        # Python dependencies
 ├── docker-compose.yml          # Service orchestration

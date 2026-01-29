@@ -25,8 +25,14 @@ GLMモデル（智谱AI/Z.AI）で動作するように設定済みです。
 **アーキテクチャ:**
 
 ```
-Discordユーザー → Discord Bot → cc-api (HTTP) → Claude Code CLI
+Discordユーザー ⇄ Discord Bot (FastAPI) ⇄ cc-api (HTTP) ⇄ Claude Code CLI
+                   ↓
+            :8082 (HTTP API)
 ```
+
+Cinderellaは**双方向通信**をサポートしています：
+- **ユーザー → AI**: DiscordまたはHTTP API経由で質問
+- **AI → ユーザー**: Claude CodeからDiscordへ通知送信（discord-bot API経由）
 
 ## セットアップ
 
@@ -112,12 +118,18 @@ Discord経由でClaudeを使用したい場合：
    - 「Bot」セクションでボットを作成
    - ボットトークンをコピー
 
-2. **`.env` に DISCORD_TOKEN を追加**
+2. **`.env` に環境変数を追加**
 
 `.env` ファイルに以下を追加してください：
 
 ```bash
+# 必須: Discord Botトークン
 DISCORD_TOKEN=your_discord_bot_token_here
+
+# 任意: APIエンドポイントの認証用APIキー
+# 設定すると、/v1/discord/action へのリクエストに x-api-key ヘッダーが必要になります
+# 設定しない場合、認証なしでアクセス可能です
+DISCORD_BOT_API_KEY=your_discord_bot_api_key_here
 ```
 
 3. **サービスを起動**
@@ -196,6 +208,102 @@ Claude Codeを実行します。
 }
 ```
 
+### `POST /v1/discord/action`
+
+Claude CodeからDiscordアクションを実行します（Moltbot互換）。
+
+**認証（オプション）:**
+
+環境変数 `DISCORD_BOT_API_KEY` が設定されている場合、リクエストには `x-api-key` ヘッダーにAPIキーを含める必要があります：
+
+```bash
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
+```
+
+`DISCORD_BOT_API_KEY` が設定されていない場合、認証なしでエンドポイントにアクセスできます。
+
+**サポートされているアクション:**
+
+- `react` - メッセージにリアクションを追加
+- `sendMessage` - 新しいメッセージを送信
+- `editMessage` - 既存のメッセージを編集
+- `deleteMessage` - メッセージを削除
+
+**リクエスト例:**
+
+```json
+// メッセージにリアクション
+{
+  "action": "react",
+  "channelId": "1234567890",
+  "messageId": "0987654321",
+  "emoji": "✅"
+}
+
+// メッセージを送信
+{
+  "action": "sendMessage",
+  "channelId": "1234567890",
+  "content": "こんにちは、Claude Codeから！"
+}
+
+// メッセージを編集
+{
+  "action": "editMessage",
+  "channelId": "1234567890",
+  "messageId": "0987654321",
+  "content": "編集したメッセージ"
+}
+
+// メッセージを削除
+{
+  "action": "deleteMessage",
+  "channelId": "1234567890",
+  "messageId": "0987654321"
+}
+```
+
+**レスポンス:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Reaction added"
+  }
+}
+```
+
+**Claude Codeからの使用方法:**
+
+Claude Codeはcurlを使ってDiscordアクションを実行できます：
+
+```bash
+# メッセージにリアクション（APIキー認証あり）
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
+
+# メッセージを送信（APIキー認証あり）
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_discord_bot_api_key_here" \
+  -d '{"action":"sendMessage","channelId":"123","content":"こんにちは、Claude Codeから！"}'
+
+# 認証なし（DISCORD_BOT_API_KEYが設定されていない場合）
+curl -s http://localhost:8082/v1/discord/action \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"action":"react","channelId":"123","messageId":"456","emoji":"✅"}'
+```
+
 ## GLMモデル設定
 
 Z.AI（GLMモデル）を使用する場合、`.env` または環境変数で以下の設定が可能です：
@@ -242,7 +350,8 @@ docker compose logs --tail=100 -f
 
 ## ポート
 
-- **8081**: HTTPサーバー
+- **8081**: cc-api HTTPサーバー
+- **8082**: discord-bot APIサーバー（Claude Code → Discord 操作用）
 
 ## ファイル構造
 
@@ -252,7 +361,7 @@ cinderella/
 │   ├── server.py               # FastAPIサーバー
 │   └── Dockerfile              # APIサーバーコンテナ
 ├── discord-bot/                # Discord Botインターフェース
-│   ├── bot.py                  # Discord Bot本体
+│   ├── bot.py                  # Discord Bot本体 + FastAPI
 │   ├── Dockerfile              # Botコンテナ
 │   └── requirements.txt        # Python依存関係
 ├── docker-compose.yml          # サービスオーケストレーション

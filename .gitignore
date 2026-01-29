@@ -43,4 +43,5 @@ tests/test_report.md
 workspace/
 .SourceSageAssets/Repository_summary.md
 
-data/.claude
+data/.claude/*
+!data/.claude/skills

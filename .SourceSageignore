@@ -103,3 +103,5 @@ LICENSE
 /workspace
 
 .git/
+.claude/
+.github/
