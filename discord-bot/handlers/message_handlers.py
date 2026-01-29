@@ -311,7 +311,7 @@ async def handle_thread_create(req: BaseModel, bot) -> dict:
         thread = await message.create_thread(name=req.name)
 
         # Discordではメッセージからスレッドを作成した場合、
-        # スレッドIDはメッセージIDと同じになる
+        # そのメッセージはスレッドの最初のメッセージとなります
         logger.info(f"Thread created successfully: {thread.id}")
         return {"success": True, "data": {"thread_id": str(thread.id), "name": thread.name}}
     except Exception as e:
