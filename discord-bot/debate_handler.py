@@ -207,7 +207,11 @@ class DebateManager:
         if channel_id in self.debate_contexts:
             del self.debate_contexts[channel_id]
             logger.info(f"Ended debate in channel {channel_id}")
-    
+
+    def is_active_debate(self, channel_id: int) -> bool:
+        """議論がアクティブかチェック"""
+        return channel_id in self.debate_contexts
+
     def increment_turn(self, channel_id: int):
         """ターン数を増加"""
         context = self.get_context(channel_id)
@@ -282,12 +286,16 @@ async def process_debate_message(
 ) -> bool:
     """
     議論メッセージを処理
-    
+
     Returns:
         アクションを実行したかどうか
     """
+    # Bot自身のメッセージは処理しない
+    if message.author == bot.user:
+        return False
+
     channel_id = message.channel.id
-    
+
     # 議論コンテキストを取得または作成
     context = debate_manager.get_context(channel_id)
     if not context:

@@ -100,6 +100,46 @@ curl -s http://localhost:8082/v1/discord/action \
 {"success": true, "data": {"message_id": "123456789012345679"}}
 ```
 
+## Debate Functionality
+
+The Discord bot supports bot-to-bot debates through the `!debate` command.
+
+### Starting a debate
+
+Users can initiate a debate using:
+
+```
+!debate <トピック> [--personality=<type>]
+```
+
+**Available personalities:**
+- `optimist` - 楽観派AI (positive/constructive)
+- `pessimist` - 慎重派AI (careful/critical)
+- `neutral` - 中立派AI (objective/balanced)
+
+**Examples:**
+```
+!debate AIと仕事
+!debate リモートワークの是非 --personality=optimist
+!debate 気候変動対策 --personality=pessimist
+```
+
+### How it works
+
+1. When `!debate` is used, the bot starts a debate context for that channel
+2. The bot responds to the topic using its assigned personality
+3. Other bots in the channel can participate by responding to messages
+4. The debate automatically concludes after 5 turns per bot or when consensus is reached
+5. A summary message is posted when the debate ends
+
+### Debate behavior
+
+- Bots only respond to other bots' messages during debates
+- Each bot has a personality that influences their responses
+- The debate context is channel-specific
+- Debates automatically end to prevent infinite loops
+- Summary keywords trigger conclusion: "まとめ", "ご清聴", "結論", "終了"
+
 ### Edit a message
 
 ```json
