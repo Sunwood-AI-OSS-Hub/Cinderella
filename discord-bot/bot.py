@@ -1,3 +1,10 @@
+"""
+Cinderella Discord Bot
+
+Discord Bot + FastAPI Server
+Claude Code から Discord を操作するための API を提供します
+"""
+
 import os
 import asyncio
 import logging
@@ -11,7 +18,24 @@ from pydantic import BaseModel, Field
 from typing import Optional
 import concurrent.futures
 
-# 環境変数の検証強化 - 空文字列もチェック
+# ハンドラーをインポート
+from handlers import (
+    handle_react, handle_reactions,
+    handle_send_message, handle_edit_message, handle_delete_message,
+    handle_read_messages, handle_fetch_message,
+    handle_pin_message, handle_list_pins,
+    handle_thread_create, handle_thread_list, handle_thread_reply,
+    handle_sticker, handle_poll, handle_search_messages,
+    handle_channel_info, handle_channel_list, handle_permissions,
+    handle_channel_create, handle_category_create,
+    handle_channel_edit, handle_channel_move, handle_channel_delete,
+    handle_category_edit, handle_category_delete,
+    handle_member_info, handle_role_info, handle_emoji_list,
+    handle_emoji_upload, handle_sticker_upload,
+    handle_voice_status, handle_event_list,
+    handle_role_add, handle_role_remove,
+    handle_timeout, handle_kick, handle_ban,
+)
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 if not DISCORD_TOKEN or not DISCORD_TOKEN.strip():
     raise ValueError("DISCORD_TOKEN is required and cannot be empty")
@@ -51,7 +75,7 @@ api_app = FastAPI(title="Discord Bot API")
 
 
 class DiscordActionRequest(BaseModel):
-    action: str = Field(..., description="アクション名: react, sendMessage, editMessage, deleteMessage, threadCreate, threadList, threadReply, reactions, readMessages, fetchMessage, pinMessage, listPins, memberInfo, roleInfo, emojiList, channelInfo, channelList, permissions")
+    action: str = Field(..., description="アクション名: react, sendMessage, editMessage, deleteMessage, threadCreate, threadList, threadReply, reactions, readMessages, fetchMessage, pinMessage, listPins, memberInfo, roleInfo, emojiList, channelInfo, channelList, permissions, sticker, emojiUpload, stickerUpload, poll, searchMessages, channelCreate, categoryCreate, channelEdit, channelMove, channelDelete, categoryEdit, categoryDelete, voiceStatus, eventList, roleAdd, roleRemove, timeout, kick, ban")
     # 共通パラメータ
     channelId: Optional[str] = Field(None, description="チャンネルID")
     messageId: Optional[str] = Field(None, description="メッセージID")
@@ -67,6 +91,34 @@ class DiscordActionRequest(BaseModel):
     threadId: Optional[str] = Field(None, description="スレッドID")
     # その他のパラメータ
     limit: Optional[int] = Field(None, description="取得数の上限")
+    # sticker用
+    stickerIds: Optional[list] = Field(None, description="スタンプIDリスト")
+    # emojiUpload/stickerUpload用
+    mediaUrl: Optional[str] = Field(None, description="メディアURL")
+    description: Optional[str] = Field(None, description="説明")
+    tags: Optional[list] = Field(None, description="タグリスト")
+    roleIds: Optional[list] = Field(None, description="ロールIDリスト")
+    # poll用
+    question: Optional[str] = Field(None, description="投票の質問")
+    answers: Optional[list] = Field(None, description="投票の回答リスト")
+    allowMultiselect: Optional[bool] = Field(None, description="複数選択を許可するか")
+    durationHours: Optional[int] = Field(None, description="投票時間（時間）")
+    # searchMessages用
+    searchContent: Optional[str] = Field(None, description="検索する文字列")
+    channelIds: Optional[list] = Field(None, description="検索対象チャンネルIDリスト")
+    # channelCreate/channelEdit/channelMove用
+    type: Optional[str] = Field(None, description="チャンネルタイプ")
+    parentId: Optional[str] = Field(None, description="親カテゴリID")
+    topic: Optional[str] = Field(None, description="チャンネルトピック")
+    position: Optional[int] = Field(None, description="チャンネル位置")
+    nsfw: Optional[bool] = Field(None, description="NSFW設定")
+    # categoryEdit用
+    categoryId: Optional[str] = Field(None, description="カテゴリID")
+    # timeout/kick/ban用
+    durationMinutes: Optional[int] = Field(None, description="タイムアウト時間（分）")
+    reason: Optional[str] = Field(None, description="理由")
+    deleteMessageDays: Optional[int] = Field(None, description="削除するメッセージの日数")
+    roleId: Optional[str] = Field(None, description="ロールID")
 
 
 class DiscordActionResponse(BaseModel):
@@ -315,626 +367,95 @@ async def discord_action(req: DiscordActionRequest):
     logger.debug(f"Using timeout: {timeout}s for action: {action}")
 
     try:
+        # Message handlers
         if action == "react":
-            return run_async(handle_react(req), timeout)
-        elif action == "sendMessage":
-            return run_async(handle_send_message(req), timeout)
-        elif action == "editMessage":
-            return run_async(handle_edit_message(req), timeout)
-        elif action == "deleteMessage":
-            return run_async(handle_delete_message(req), timeout)
-        elif action == "threadCreate":
-            return run_async(handle_thread_create(req), timeout)
-        elif action == "threadList":
-            return run_async(handle_thread_list(req), timeout)
-        elif action == "threadReply":
-            return run_async(handle_thread_reply(req), timeout)
+            result = run_async(handle_react(req, bot))
         elif action == "reactions":
-            return run_async(handle_reactions(req), timeout)
+            result = run_async(handle_reactions(req, bot))
+        elif action == "sendMessage":
+            result = run_async(handle_send_message(req, bot))
+        elif action == "editMessage":
+            result = run_async(handle_edit_message(req, bot))
+        elif action == "deleteMessage":
+            result = run_async(handle_delete_message(req, bot))
         elif action == "readMessages":
-            return run_async(handle_read_messages(req), timeout)
+            result = run_async(handle_read_messages(req, bot))
         elif action == "fetchMessage":
-            return run_async(handle_fetch_message(req), timeout)
+            result = run_async(handle_fetch_message(req, bot))
         elif action == "pinMessage":
-            return run_async(handle_pin_message(req), timeout)
+            result = run_async(handle_pin_message(req, bot))
         elif action == "listPins":
-            return run_async(handle_list_pins(req), timeout)
-        elif action == "memberInfo":
-            return run_async(handle_member_info(req), timeout)
-        elif action == "roleInfo":
-            return run_async(handle_role_info(req), timeout)
-        elif action == "emojiList":
-            return run_async(handle_emoji_list(req), timeout)
+            result = run_async(handle_list_pins(req, bot))
+        elif action == "threadCreate":
+            result = run_async(handle_thread_create(req, bot))
+        elif action == "threadList":
+            result = run_async(handle_thread_list(req, bot))
+        elif action == "threadReply":
+            result = run_async(handle_thread_reply(req, bot))
+        elif action == "sticker":
+            result = run_async(handle_sticker(req, bot))
+        elif action == "poll":
+            result = run_async(handle_poll(req, bot))
+        elif action == "searchMessages":
+            result = run_async(handle_search_messages(req, bot))
+        # Channel handlers
         elif action == "channelInfo":
-            return run_async(handle_channel_info(req), timeout)
+            result = run_async(handle_channel_info(req, bot))
         elif action == "channelList":
-            return run_async(handle_channel_list(req), timeout)
+            result = run_async(handle_channel_list(req, bot))
         elif action == "permissions":
-            return run_async(handle_permissions(req), timeout)
+            result = run_async(handle_permissions(req, bot))
+        elif action == "channelCreate":
+            result = run_async(handle_channel_create(req, bot))
+        elif action == "categoryCreate":
+            result = run_async(handle_category_create(req, bot))
+        elif action == "channelEdit":
+            result = run_async(handle_channel_edit(req, bot))
+        elif action == "channelMove":
+            result = run_async(handle_channel_move(req, bot))
+        elif action == "channelDelete":
+            result = run_async(handle_channel_delete(req, bot))
+        elif action == "categoryEdit":
+            result = run_async(handle_category_edit(req, bot))
+        elif action == "categoryDelete":
+            result = run_async(handle_category_delete(req, bot))
+        # Guild handlers
+        elif action == "memberInfo":
+            result = run_async(handle_member_info(req, bot))
+        elif action == "roleInfo":
+            result = run_async(handle_role_info(req, bot))
+        elif action == "emojiList":
+            result = run_async(handle_emoji_list(req, bot))
+        elif action == "emojiUpload":
+            result = run_async(handle_emoji_upload(req, bot))
+        elif action == "stickerUpload":
+            result = run_async(handle_sticker_upload(req, bot))
+        elif action == "voiceStatus":
+            result = run_async(handle_voice_status(req, bot))
+        elif action == "eventList":
+            result = run_async(handle_event_list(req, bot))
+        elif action == "roleAdd":
+            result = run_async(handle_role_add(req, bot))
+        elif action == "roleRemove":
+            result = run_async(handle_role_remove(req, bot))
+        elif action == "timeout":
+            result = run_async(handle_timeout(req, bot))
+        elif action == "kick":
+            result = run_async(handle_kick(req, bot))
+        elif action == "ban":
+            result = run_async(handle_ban(req, bot))
         else:
             return DiscordActionResponse(success=False, error=f"Unknown action: {action}")
+
+        if result.get("success"):
+            return DiscordActionResponse(success=True, data=result.get("data"))
+        else:
+            return DiscordActionResponse(success=False, error=result.get("error"))
     except concurrent.futures.TimeoutError:
         logger.error(f"Discord action timeout after {timeout}s")
         return DiscordActionResponse(success=False, error=f"Timeout after {timeout}s")
     except Exception as e:
         logger.error(f"Discord action error: {e}", exc_info=True)
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_react(req: DiscordActionRequest) -> DiscordActionResponse:
-    """リアクションを追加"""
-    if not req.channelId or not req.messageId or not req.emoji:
-        return DiscordActionResponse(success=False, error="channelId, messageId, and emoji are required for react")
-
-    try:
-        channel = bot.get_channel(int(req.channelId))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {req.channelId} not found")
-
-        message = await channel.fetch_message(int(req.messageId))
-        await message.add_reaction(req.emoji)
-
-        logger.info(f"Reaction added successfully")
-        return DiscordActionResponse(success=True, data={"message": "Reaction added"})
-    except Exception as e:
-        logger.error(f"Failed to add reaction: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_send_message(req: DiscordActionRequest) -> DiscordActionResponse:
-    """メッセージを送信"""
-    # to パラメータを解析 (channel:<id> または user:<id>)
-    channel_id = req.channelId
-    if req.to:
-        if req.to.startswith("channel:"):
-            channel_id = req.to.split(":")[1]
-        elif req.to.startswith("user:"):
-            # DMの場合は別途処理が必要
-            return DiscordActionResponse(success=False, error="DM not yet supported")
-
-    if not channel_id:
-        return DiscordActionResponse(success=False, error="channelId or to is required")
-
-    try:
-        channel = bot.get_channel(int(channel_id))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {channel_id} not found")
-
-        message = await channel.send(req.content or "")
-
-        logger.info(f"Message sent successfully: {message.id}")
-        return DiscordActionResponse(success=True, data={"message_id": str(message.id)})
-    except Exception as e:
-        logger.error(f"Failed to send message: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_edit_message(req: DiscordActionRequest) -> DiscordActionResponse:
-    """メッセージを編集"""
-    if not req.channelId or not req.messageId:
-        return DiscordActionResponse(success=False, error="channelId and messageId are required for editMessage")
-
-    try:
-        channel = bot.get_channel(int(req.channelId))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {req.channelId} not found")
-
-        message = await channel.fetch_message(int(req.messageId))
-        await message.edit(content=req.content or "")
-
-        logger.info(f"Message edited successfully: {message.id}")
-        return DiscordActionResponse(success=True, data={"message_id": str(message.id)})
-    except Exception as e:
-        logger.error(f"Failed to edit message: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_delete_message(req: DiscordActionRequest) -> DiscordActionResponse:
-    """メッセージを削除"""
-    if not req.channelId or not req.messageId:
-        return DiscordActionResponse(success=False, error="channelId and messageId are required for deleteMessage")
-
-    try:
-        channel = bot.get_channel(int(req.channelId))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {req.channelId} not found")
-
-        message = await channel.fetch_message(int(req.messageId))
-        await message.delete()
-
-        logger.info(f"Message deleted successfully")
-        return DiscordActionResponse(success=True, data={"message": "Message deleted"})
-    except Exception as e:
-        logger.error(f"Failed to delete message: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_thread_create(req: DiscordActionRequest) -> DiscordActionResponse:
-    """スレッドを作成"""
-    if not req.channelId or not req.messageId or not req.name:
-        return DiscordActionResponse(success=False, error="channelId, messageId, and name are required for threadCreate")
-
-    try:
-        channel = bot.get_channel(int(req.channelId))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {req.channelId} not found")
-
-        message = await channel.fetch_message(int(req.messageId))
-        thread = await message.create_thread(name=req.name)
-
-        logger.info(f"Thread created successfully: {thread.id}")
-        return DiscordActionResponse(success=True, data={"thread_id": str(thread.id), "name": thread.name})
-    except Exception as e:
-        logger.error(f"Failed to create thread: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_thread_list(req: DiscordActionRequest) -> DiscordActionResponse:
-    """スレッド一覧を取得"""
-    if not req.guildId:
-        return DiscordActionResponse(success=False, error="guildId is required for threadList")
-
-    try:
-        guild = bot.get_guild(int(req.guildId))
-        if not guild:
-            return DiscordActionResponse(success=False, error=f"Guild {req.guildId} not found")
-
-        threads = [thread for thread in guild.threads if not thread.archived]
-
-        thread_list = [
-            {
-                "id": str(thread.id),
-                "name": thread.name,
-                "parent_id": str(thread.parent_id),
-                "message_count": thread.message_count
-            }
-            for thread in threads
-        ]
-
-        logger.info(f"Thread list retrieved: {len(thread_list)} active threads")
-        return DiscordActionResponse(success=True, data={"threads": thread_list, "count": len(thread_list)})
-    except Exception as e:
-        logger.error(f"Failed to list threads: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_thread_reply(req: DiscordActionRequest) -> DiscordActionResponse:
-    """スレッドに返信"""
-    if not req.threadId or not req.content:
-        return DiscordActionResponse(success=False, error="threadId and content are required for threadReply")
-
-    try:
-        # スレッドを取得
-        thread = bot.get_channel(int(req.threadId))
-        if not thread or not hasattr(thread, 'parent_id'):
-            return DiscordActionResponse(success=False, error=f"Thread {req.threadId} not found")
-
-        message = await thread.send(req.content)
-
-        logger.info(f"Thread reply sent successfully: {message.id}")
-        return DiscordActionResponse(success=True, data={"message_id": str(message.id), "thread_id": req.threadId})
-    except Exception as e:
-        logger.error(f"Failed to reply to thread: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_reactions(req: DiscordActionRequest) -> DiscordActionResponse:
-    """メッセージのリアクションとユーザー一覧を取得"""
-    if not req.channelId or not req.messageId:
-        return DiscordActionResponse(success=False, error="channelId and messageId are required for reactions")
-
-    try:
-        channel = bot.get_channel(int(req.channelId))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {req.channelId} not found")
-
-        message = await channel.fetch_message(int(req.messageId))
-
-        reactions_data = []
-        for reaction in message.reactions:
-            users = []
-            limit = req.limit or 100
-            async for user in reaction.users(limit=limit):
-                users.append({
-                    "id": str(user.id),
-                    "username": user.name,
-                    "display_name": user.display_name,
-                    "bot": user.bot
-                })
-
-            reactions_data.append({
-                "emoji": {
-                    "name": reaction.emoji,
-                    "animated": getattr(reaction.emoji, 'animated', False) if hasattr(reaction.emoji, 'animated') else False,
-                    "id": str(reaction.emoji.id) if hasattr(reaction.emoji, 'id') and reaction.emoji.id else None
-                },
-                "count": reaction.count,
-                "users": users
-            })
-
-        logger.info(f"Reactions retrieved: {len(reactions_data)} reactions")
-        return DiscordActionResponse(success=True, data={"reactions": reactions_data, "message_id": req.messageId})
-    except Exception as e:
-        logger.error(f"Failed to get reactions: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_read_messages(req: DiscordActionRequest) -> DiscordActionResponse:
-    """チャンネルの最近のメッセージを読む"""
-    if not req.channelId:
-        return DiscordActionResponse(success=False, error="channelId is required for readMessages")
-
-    try:
-        channel = bot.get_channel(int(req.channelId))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {req.channelId} not found")
-
-        limit = req.limit or 20
-        messages = []
-        async for message in channel.history(limit=limit):
-            reactions = []
-            for reaction in message.reactions:
-                reactions.append({
-                    "emoji": str(reaction.emoji),
-                    "count": reaction.count
-                })
-
-            messages.append({
-                "id": str(message.id),
-                "content": message.content,
-                "author": {
-                    "id": str(message.author.id),
-                    "username": message.author.name,
-                    "display_name": message.author.display_name,
-                    "bot": message.author.bot
-                },
-                "timestamp": message.created_at.isoformat(),
-                "reactions": reactions
-            })
-
-        # 昇順（古い順）に並べ替え
-        messages.reverse()
-
-        logger.info(f"Messages retrieved: {len(messages)} messages")
-        return DiscordActionResponse(success=True, data={"messages": messages, "count": len(messages)})
-    except Exception as e:
-        logger.error(f"Failed to read messages: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_fetch_message(req: DiscordActionRequest) -> DiscordActionResponse:
-    """単一のメッセージを取得"""
-    if not req.guildId or not req.channelId or not req.messageId:
-        return DiscordActionResponse(success=False, error="guildId, channelId, and messageId are required for fetchMessage")
-
-    try:
-        guild = bot.get_guild(int(req.guildId))
-        if not guild:
-            return DiscordActionResponse(success=False, error=f"Guild {req.guildId} not found")
-
-        channel = bot.get_channel(int(req.channelId))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {req.channelId} not found")
-
-        message = await channel.fetch_message(int(req.messageId))
-
-        reactions = []
-        for reaction in message.reactions:
-            reactions.append({
-                "emoji": str(reaction.emoji),
-                "count": reaction.count
-            })
-
-        message_data = {
-            "id": str(message.id),
-            "content": message.content,
-            "author": {
-                "id": str(message.author.id),
-                "username": message.author.name,
-                "display_name": message.author.display_name,
-                "bot": message.author.bot
-            },
-            "channel_id": str(message.channel.id),
-            "guild_id": str(message.guild.id),
-            "timestamp": message.created_at.isoformat(),
-            "edited_timestamp": message.edited_at.isoformat() if message.edited_at else None,
-            "reactions": reactions,
-            "pinned": message.pinned
-        }
-
-        # 参照メッセージがある場合は取得
-        if message.reference and message.reference.message_id:
-            try:
-                ref_message = await channel.fetch_message(message.reference.message_id)
-                message_data["reference"] = {
-                    "message_id": str(ref_message.id),
-                    "content": ref_message.content[:200] if ref_message.content else None,
-                    "author": {
-                        "id": str(ref_message.author.id),
-                        "username": ref_message.author.name
-                    }
-                }
-            except Exception:
-                message_data["reference"] = None
-
-        logger.info(f"Message fetched: {message.id}")
-        return DiscordActionResponse(success=True, data=message_data)
-    except Exception as e:
-        logger.error(f"Failed to fetch message: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_pin_message(req: DiscordActionRequest) -> DiscordActionResponse:
-    """メッセージをピン留め"""
-    if not req.channelId or not req.messageId:
-        return DiscordActionResponse(success=False, error="channelId and messageId are required for pinMessage")
-
-    try:
-        channel = bot.get_channel(int(req.channelId))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {req.channelId} not found")
-
-        message = await channel.fetch_message(int(req.messageId))
-        await message.pin()
-
-        logger.info(f"Message pinned: {message.id}")
-        return DiscordActionResponse(success=True, data={"message_id": str(message.id), "pinned": True})
-    except Exception as e:
-        logger.error(f"Failed to pin message: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_list_pins(req: DiscordActionRequest) -> DiscordActionResponse:
-    """ピン留めされたメッセージ一覧を取得"""
-    if not req.channelId:
-        return DiscordActionResponse(success=False, error="channelId is required for listPins")
-
-    try:
-        channel = bot.get_channel(int(req.channelId))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {req.channelId} not found")
-
-        pins = await channel.pins()
-
-        pins_data = []
-        for message in pins:
-            pins_data.append({
-                "id": str(message.id),
-                "content": message.content,
-                "author": {
-                    "id": str(message.author.id),
-                    "username": message.author.name,
-                    "display_name": message.author.display_name
-                },
-                "timestamp": message.created_at.isoformat()
-            })
-
-        logger.info(f"Pins retrieved: {len(pins_data)} pinned messages")
-        return DiscordActionResponse(success=True, data={"pins": pins_data, "count": len(pins_data)})
-    except Exception as e:
-        logger.error(f"Failed to list pins: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_member_info(req: DiscordActionRequest) -> DiscordActionResponse:
-    """メンバー情報を取得"""
-    if not req.guildId or not req.userId:
-        return DiscordActionResponse(success=False, error="guildId and userId are required for memberInfo")
-
-    try:
-        guild = bot.get_guild(int(req.guildId))
-        if not guild:
-            return DiscordActionResponse(success=False, error=f"Guild {req.guildId} not found")
-
-        member = await guild.fetch_member(int(req.userId))
-
-        roles = []
-        for role in member.roles:
-            roles.append({
-                "id": str(role.id),
-                "name": role.name,
-                "color": str(role.color),
-                "position": role.position
-            })
-
-        member_data = {
-            "id": str(member.id),
-            "username": member.name,
-            "display_name": member.display_name,
-            "bot": member.bot,
-            "avatar_url": member.avatar.url if member.avatar else member.default_avatar.url,
-            "joined_at": member.joined_at.isoformat() if member.joined_at else None,
-            "roles": roles,
-            "premium_since": member.premium_since.isoformat() if member.premium_since else None,
-            "pending": member.pending if hasattr(member, 'pending') else False
-        }
-
-        logger.info(f"Member info retrieved: {member.id}")
-        return DiscordActionResponse(success=True, data=member_data)
-    except Exception as e:
-        logger.error(f"Failed to get member info: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_role_info(req: DiscordActionRequest) -> DiscordActionResponse:
-    """ロール情報を取得"""
-    if not req.guildId:
-        return DiscordActionResponse(success=False, error="guildId is required for roleInfo")
-
-    try:
-        guild = bot.get_guild(int(req.guildId))
-        if not guild:
-            return DiscordActionResponse(success=False, error=f"Guild {req.guildId} not found")
-
-        roles = []
-        for role in guild.roles:
-            roles.append({
-                "id": str(role.id),
-                "name": role.name,
-                "color": str(role.color),
-                "hoist": role.hoist,
-                "position": role.position,
-                "permissions": str(role.permissions.value),
-                "managed": role.managed,
-                "mentionable": role.mentionable,
-                "member_count": len(role.members)
-            })
-
-        # position順にソート（高い順）
-        roles.sort(key=lambda x: x["position"], reverse=True)
-
-        logger.info(f"Role info retrieved: {len(roles)} roles")
-        return DiscordActionResponse(success=True, data={"roles": roles, "count": len(roles)})
-    except Exception as e:
-        logger.error(f"Failed to get role info: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_emoji_list(req: DiscordActionRequest) -> DiscordActionResponse:
-    """カスタム絵文字一覧を取得"""
-    if not req.guildId:
-        return DiscordActionResponse(success=False, error="guildId is required for emojiList")
-
-    try:
-        guild = bot.get_guild(int(req.guildId))
-        if not guild:
-            return DiscordActionResponse(success=False, error=f"Guild {req.guildId} not found")
-
-        emojis = []
-        for emoji in guild.emojis:
-            emojis.append({
-                "id": str(emoji.id),
-                "name": emoji.name,
-                "animated": emoji.animated,
-                "available": emoji.available,
-                "url": str(emoji.url)
-            })
-
-        logger.info(f"Emoji list retrieved: {len(emojis)} emojis")
-        return DiscordActionResponse(success=True, data={"emojis": emojis, "count": len(emojis)})
-    except Exception as e:
-        logger.error(f"Failed to list emojis: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_channel_info(req: DiscordActionRequest) -> DiscordActionResponse:
-    """チャンネル情報を取得"""
-    if not req.channelId:
-        return DiscordActionResponse(success=False, error="channelId is required for channelInfo")
-
-    try:
-        channel = bot.get_channel(int(req.channelId))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {req.channelId} not found")
-
-        base_data = {
-            "id": str(channel.id),
-            "name": channel.name,
-            "type": str(channel.type),
-            "position": channel.position
-        }
-
-        # テキストチャンネルの場合
-        if hasattr(channel, 'topic'):
-            base_data["topic"] = channel.topic
-            base_data["nsfw"] = channel.nsfw
-            base_data["slowmode_delay"] = channel.slowmode_delay
-
-        # カテゴリ情報
-        if hasattr(channel, 'category') and channel.category:
-            base_data["category"] = {
-                "id": str(channel.category.id),
-                "name": channel.category.name
-            }
-
-        # スレッドの場合
-        if hasattr(channel, 'parent_id') and channel.parent_id:
-            base_data["parent_id"] = str(channel.parent_id)
-            base_data["message_count"] = channel.message_count if hasattr(channel, 'message_count') else None
-            base_data["owner_id"] = str(channel.owner_id) if hasattr(channel, 'owner_id') else None
-
-        logger.info(f"Channel info retrieved: {channel.id}")
-        return DiscordActionResponse(success=True, data=base_data)
-    except Exception as e:
-        logger.error(f"Failed to get channel info: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_channel_list(req: DiscordActionRequest) -> DiscordActionResponse:
-    """ギルドのチャンネル一覧を取得"""
-    if not req.guildId:
-        return DiscordActionResponse(success=False, error="guildId is required for channelList")
-
-    try:
-        guild = bot.get_guild(int(req.guildId))
-        if not guild:
-            return DiscordActionResponse(success=False, error=f"Guild {req.guildId} not found")
-
-        channels = []
-        for channel in guild.channels:
-            base_data = {
-                "id": str(channel.id),
-                "name": channel.name,
-                "type": str(channel.type),
-                "position": channel.position
-            }
-
-            # テキストチャンネルの場合
-            if hasattr(channel, 'topic'):
-                base_data["topic"] = channel.topic
-                base_data["nsfw"] = channel.nsfw
-
-            # カテゴリ情報
-            if hasattr(channel, 'category') and channel.category:
-                base_data["category_id"] = str(channel.category.id)
-                base_data["category_name"] = channel.category.name
-
-            # スレッドの場合
-            if hasattr(channel, 'parent_id') and channel.parent_id:
-                base_data["parent_id"] = str(channel.parent_id)
-
-            channels.append(base_data)
-
-        # position順にソート
-        channels.sort(key=lambda x: x["position"])
-
-        logger.info(f"Channel list retrieved: {len(channels)} channels")
-        return DiscordActionResponse(success=True, data={"channels": channels, "count": len(channels)})
-    except Exception as e:
-        logger.error(f"Failed to list channels: {e}")
-        return DiscordActionResponse(success=False, error=str(e))
-
-
-async def handle_permissions(req: DiscordActionRequest) -> DiscordActionResponse:
-    """ボットのチャンネル権限を確認"""
-    if not req.channelId:
-        return DiscordActionResponse(success=False, error="channelId is required for permissions")
-
-    try:
-        channel = bot.get_channel(int(req.channelId))
-        if not channel:
-            return DiscordActionResponse(success=False, error=f"Channel {req.channelId} not found")
-
-        # ボットのメンバーを取得
-        bot_member = channel.guild.me if hasattr(channel, 'guild') else None
-        if not bot_member:
-            return DiscordActionResponse(success=False, error="Could not get bot member")
-
-        # チャンネルでの権限を確認
-        permissions = channel.permissions_for(bot_member)
-
-        perms_data = {}
-        for perm, value in permissions:
-            perms_data[perm] = value
-
-        logger.info(f"Permissions retrieved for channel {channel.id}")
-        return DiscordActionResponse(success=True, data={
-            "channel_id": str(channel.id),
-            "permissions": perms_data,
-            "bot_id": str(bot_member.id)
-        })
-    except Exception as e:
-        logger.error(f"Failed to get permissions: {e}")
         return DiscordActionResponse(success=False, error=str(e))
 
 
