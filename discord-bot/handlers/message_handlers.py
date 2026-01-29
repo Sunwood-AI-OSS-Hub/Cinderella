@@ -91,7 +91,17 @@ async def handle_send_message(req: BaseModel, bot) -> dict:
         if not channel:
             return {"success": False, "error": f"Channel {channel_id} not found"}
 
-        message = await channel.send(req.content or "")
+        # 返信先メッセージが指定されている場合
+        reference = None
+        if hasattr(req, 'replyTo') and req.replyTo:
+            try:
+                reply_message = await channel.fetch_message(int(req.replyTo))
+                reference = discord.MessageReference(message_id=reply_message.id, channel_id=channel.id, guild_id=channel.guild.id if hasattr(channel, 'guild') else None)
+                logger.info(f"Replying to message {req.replyTo} in channel {channel_id}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch reply message: {e}")
+
+        message = await channel.send(req.content or "", reference=reference)
 
         logger.info(f"Message sent successfully: {message.id}")
         return {"success": True, "data": {"message_id": str(message.id)}}
