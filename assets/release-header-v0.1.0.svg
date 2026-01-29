@@ -1,0 +1,232 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300">
+  <defs>
+    <!-- Cinderella Crystal Gradient -->
+    <linearGradient id="crystal-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e8f4f8">
+        <animate attributeName="stop-color" values="#e8f4f8;#b8d4e3;#d4e9f7;#a8d8ea;#e8f4f8" dur="8s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="50%" style="stop-color:#d4e9f7">
+        <animate attributeName="stop-color" values="#d4e9f7;#e8f4f8;#b8d4e3;#d4e9f7;#a8d8ea" dur="8s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#a8d8ea">
+        <animate attributeName="stop-color" values="#a8d8ea;#d4e9f7;#e8f4f8;#b8d4e3;#a8d8ea" dur="8s" repeatCount="indefinite"/>
+      </stop>
+    </linearGradient>
+
+    <!-- Magic Sparkle Gradient -->
+    <linearGradient id="magic-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffd6e8">
+        <animate attributeName="stop-color" values="#ffd6e8;#fff0f5;#ffe4f1;#ffd6e8;#fffafa" dur="4s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="50%" style="stop-color:#fff0f5">
+        <animate attributeName="stop-color" values="#fff0f5;#ffe4f1;#ffd6e8;#fffafa;#fff0f5" dur="4s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#ffe4f1">
+        <animate attributeName="stop-color" values="#ffe4f1;#fffafa;#fff0f5;#ffd6e8;#ffe4f1" dur="4s" repeatCount="indefinite"/>
+      </stop>
+    </linearGradient>
+
+    <!-- Midnight Ball Background -->
+    <linearGradient id="ball-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a3e">
+        <animate attributeName="stop-color" values="#1a1a3e;#2d2d5a;#1e1e4a;#2a2a5a;#1a1a3e" dur="12s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="50%" style="stop-color:#2d2d5a">
+        <animate attributeName="stop-color" values="#2d2d5a;#1e1e4a;#2a2a5a;#1a1a3e;#2d2d5a" dur="12s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#1e1e4a">
+        <animate attributeName="stop-color" values="#1e1e4a;#2a2a5a;#1a1a3e;#2d2d5a;#1e1e4a" dur="12s" repeatCount="indefinite"/>
+      </stop>
+    </linearGradient>
+
+    <!-- Crystal Glow Effect -->
+    <filter id="crystal-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur">
+        <animate attributeName="stdDeviation" values="4;7;5;8;4" dur="4s" repeatCount="indefinite"/>
+      </feGaussianBlur>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Magic Dust Glow -->
+    <filter id="magic-dust" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="1.5" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Star Pattern -->
+    <pattern id="starfield" width="60" height="60" patternUnits="userSpaceOnUse">
+      <g>
+        <circle cx="10" cy="10" r="0.5" fill="white" opacity="0.3">
+          <animate attributeName="opacity" values="0.3;0.7;0.3" dur="3s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="45" cy="25" r="0.3" fill="white" opacity="0.2">
+          <animate attributeName="opacity" values="0.2;0.6;0.2" dur="2.5s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="25" cy="50" r="0.4" fill="white" opacity="0.25">
+          <animate attributeName="opacity" values="0.25;0.5;0.25" dur="4s" repeatCount="indefinite"/>
+        </circle>
+      </g>
+    </pattern>
+  </defs>
+
+  <style>
+    @keyframes float-gentle {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 1; }
+    }
+    @keyframes spin-slow {
+      from { transform-origin: center; transform: rotate(0deg); }
+      to { transform-origin: center; transform: rotate(360deg); }
+    }
+    @keyframes shimmer {
+      0%, 100% { opacity: 0; transform: scale(0); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes wave-cascade {
+      0%, 100% { transform: translateY(0); }
+      25% { transform: translateY(-2px); }
+      75% { transform: translateY(2px); }
+    }
+    @keyframes pumpkin-glow {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.3); }
+    }
+    .main-text { animation: float-gentle 4s ease-in-out infinite; }
+    .subtitle { animation: float-gentle 3.5s ease-in-out infinite 0.5s; }
+    .crystal-spin { animation: spin-slow 30s linear infinite; transform-origin: center; }
+    .star-twinkle { animation: twinkle 2s ease-in-out infinite; }
+    .magic-shimmer { animation: shimmer 3s ease-in-out infinite; }
+    .release-char { animation: wave-cascade 2.5s ease-in-out infinite; }
+    .pumpkin { animation: pumpkin-glow 3s ease-in-out infinite; }
+  </style>
+
+  <!-- Background -->
+  <rect width="1200" height="300" fill="url(#ball-gradient)"/>
+  <rect width="1200" height="300" fill="url(#starfield)"/>
+
+  <!-- Decorative Crystal Circles -->
+  <circle cx="100" cy="150" r="90" fill="none" stroke="rgba(232,244,248,0.12)" stroke-width="1.5" class="crystal-spin"/>
+  <circle cx="1100" cy="150" r="110" fill="none" stroke="rgba(255,214,232,0.1)" stroke-width="1.5" class="crystal-spin" style="animation-direction: reverse; animation-duration: 35s;"/>
+  <circle cx="600" cy="150" r="220" fill="none" stroke="rgba(168,216,234,0.04)" stroke-width="1" class="crystal-spin" style="animation-duration: 45s;"/>
+
+  <!-- Floating Magic Particles -->
+  <circle cx="180" cy="200" r="1.5" fill="rgba(255,214,232,0.8)">
+    <animate attributeName="cy" values="200;40;200" dur="11s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.8;0;0.8" dur="11s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="1020" cy="80" r="1.5" fill="rgba(232,244,248,0.8)">
+    <animate attributeName="cy" values="80;260;80" dur="13s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.8;0;0.8" dur="13s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="320" cy="60" r="1" fill="rgba(168,216,234,0.7)">
+    <animate attributeName="cy" values="60;240;60" dur="9s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.7;0;0.7" dur="9s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="880" cy="250" r="1" fill="rgba(255,240,245,0.7)">
+    <animate attributeName="cy" values="250;50;250" dur="10s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.7;0;0.7" dur="10s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="520" cy="50" r="1.2" fill="rgba(255,214,232,0.6)">
+    <animate attributeName="cy" values="50;250;50" dur="12s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0;0.6" dur="12s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="680" cy="270" r="1.2" fill="rgba(232,244,248,0.6)">
+    <animate attributeName="cy" values="270;30;270" dur="14s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0;0.6" dur="14s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Magic Wand Sparkles (Shooting Stars) -->
+  <g filter="url(#magic-dust)">
+    <polygon points="0,0 3,-10 6,0 16,3 6,6 3,16 0,6 -10,3" fill="#ffd6e8" opacity="0.9">
+      <animateMotion dur="4s" repeatCount="indefinite" path="M 80 40 L 280 140"/>
+      <animate attributeName="opacity" values="0;1;0" dur="4s" repeatCount="indefinite"/>
+      <animate attributeName="transform" values="scale(0); scale(1); scale(0)" dur="4s" repeatCount="indefinite"/>
+    </polygon>
+    <polygon points="0,0 2,-6 4,0 10,2 4,4 2,10 0,4 -6,2" fill="#e8f4f8" opacity="0.8">
+      <animateMotion dur="5s" repeatCount="indefinite" begin="1.5s" path="M 1120 220 L 920 120"/>
+      <animate attributeName="opacity" values="0;1;0" dur="5s" repeatCount="indefinite"/>
+      <animate attributeName="transform" values="scale(0); scale(1); scale(0)" dur="5s" repeatCount="indefinite"/>
+    </polygon>
+  </g>
+
+  <!-- Glass Slipper Icon (Left) -->
+  <g transform="translate(160, 130)" opacity="0.4">
+    <path d="M5,35 Q5,10 25,10 Q40,10 45,20 L55,45 Q60,55 50,55 L15,55 Q5,55 5,35 Z" fill="none" stroke="url(#crystal-gradient)" stroke-width="2" class="crystal-spin" style="animation-duration: 20s;"/>
+    <ellipse cx="30" cy="20" rx="12" ry="8" fill="none" stroke="rgba(255,214,232,0.3)" stroke-width="1"/>
+  </g>
+
+  <!-- Glass Slipper Icon (Right) -->
+  <g transform="translate(990, 130)" opacity="0.4">
+    <path d="M5,35 Q5,10 25,10 Q40,10 45,20 L55,45 Q60,55 50,55 L15,55 Q5,55 5,35 Z" fill="none" stroke="url(#crystal-gradient)" stroke-width="2" class="crystal-spin" style="animation-duration: 25s; animation-direction: reverse;"/>
+    <ellipse cx="30" cy="20" rx="12" ry="8" fill="none" stroke="rgba(255,214,232,0.3)" stroke-width="1"/>
+  </g>
+
+  <!-- Magic Sparkles Around Title -->
+  <g fill="white" filter="url(#magic-dust)">
+    <polygon points="290,125 293,132 300,132 295,137 297,144 290,140 283,144 285,137 280,132 287,132" class="magic-shimmer">
+      <animate attributeName="opacity" values="0;1;0" dur="2.5s" repeatCount="indefinite"/>
+    </polygon>
+    <polygon points="910,125 913,132 920,132 915,137 917,144 910,140 903,144 905,137 900,132 907,132" class="magic-shimmer" style="animation-delay: 0.8s">
+      <animate attributeName="opacity" values="0;1;0" dur="2.5s" repeatCount="indefinite" begin="0.8s"/>
+    </polygon>
+    <polygon points="350,195 352,200 357,200 353,204 355,209 350,206 345,209 347,204 343,200 348,200" class="magic-shimmer" style="animation-delay: 1.6s">
+      <animate attributeName="opacity" values="0;1;0" dur="2.5s" repeatCount="indefinite" begin="1.6s"/>
+    </polygon>
+    <polygon points="850,195 852,200 857,200 853,204 855,209 850,206 845,209 847,204 843,200 848,200" class="magic-shimmer" style="animation-delay: 0.4s">
+      <animate attributeName="opacity" values="0;1;0" dur="2.5s" repeatCount="indefinite" begin="0.4s"/>
+    </polygon>
+  </g>
+
+  <!-- Main Text -->
+  <text x="600" y="175" text-anchor="middle" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="80" font-weight="900" fill="url(#crystal-gradient)" filter="url(#crystal-glow)" letter-spacing="6" class="main-text">Cinderella <tspan fill="rgba(255,255,255,0.6)" font-size="50">v0.1.0</tspan></text>
+
+  <!-- Release Text -->
+  <text x="600" y="215" text-anchor="middle" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="400" fill="url(#magic-gradient)" letter-spacing="6" class="subtitle">
+    <tspan class="release-char" style="animation-delay: 0s">I</tspan><tspan class="release-char" style="animation-delay: 0.1s">N</tspan><tspan class="release-char" style="animation-delay: 0.2s">I</tspan><tspan class="release-char" style="animation-delay: 0.3s">T</tspan><tspan class="release-char" style="animation-delay: 0.4s">I</tspan><tspan class="release-char" style="animation-delay: 0.5s">A</tspan><tspan class="release-char" style="animation-delay: 0.6s">L</tspan><tspan fill="rgba(255,255,255,0.3)" dx="15">R</tspan><tspan class="release-char" style="animation-delay: 0.7s">E</tspan><tspan class="release-char" style="animation-delay: 0.8s">L</tspan><tspan class="release-char" style="animation-delay: 0.9s">E</tspan><tspan class="release-char" style="animation-delay: 1s">A</tspan><tspan class="release-char" style="animation-delay: 1.1s">S</tspan><tspan class="release-char" style="animation-delay: 1.2s">E</tspan>
+  </text>
+
+  <!-- Subtitle -->
+  <text x="600" y="245" text-anchor="middle" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="rgba(255,255,255,0.4)" letter-spacing="3" class="subtitle">Claude Code HTTP Wrapper - The Magic Begins</text>
+
+  <!-- Crystal Dust Particles -->
+  <g>
+    <circle cx="380" cy="140" r="1" fill="rgba(232,244,248,0.9)">
+      <animate attributeName="cx" values="380;330;380" dur="2.3s" repeatCount="indefinite"/>
+      <animate attributeName="cy" values="140;110;140" dur="2.3s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="1;0;1" dur="2.3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="820" cy="140" r="1" fill="rgba(255,214,232,0.9)">
+      <animate attributeName="cx" values="820;870;820" dur="2.8s" repeatCount="indefinite"/>
+      <animate attributeName="cy" values="140;170;140" dur="2.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="1;0;1" dur="2.8s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="530" cy="120" r="0.8" fill="rgba(168,216,234,0.8)">
+      <animate attributeName="cx" values="530;510;530" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="cy" values="120;90;120" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="1;0;1" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="670" cy="120" r="0.8" fill="rgba(255,240,245,0.8)">
+      <animate attributeName="cx" values="670;690;670" dur="2.4s" repeatCount="indefinite"/>
+      <animate attributeName="cy" values="120;90;120" dur="2.4s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="1;0;1" dur="2.4s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- Decorative Dots (Crown Jewels) -->
+  <circle cx="280" cy="270" r="2.5" fill="rgba(232,244,248,0.9)" class="star-twinkle"/>
+  <circle cx="305" cy="270" r="1.8" fill="rgba(168,216,234,0.8)" class="star-twinkle" style="animation-delay: 0.25s"/>
+  <circle cx="325" cy="270" r="1.2" fill="rgba(255,214,232,0.7)" class="star-twinkle" style="animation-delay: 0.5s"/>
+  <circle cx="875" cy="270" r="1.2" fill="rgba(255,214,232,0.7)" class="star-twinkle" style="animation-delay: 0.75s"/>
+  <circle cx="895" cy="270" r="1.8" fill="rgba(168,216,234,0.8)" class="star-twinkle" style="animation-delay: 1s"/>
+  <circle cx="920" cy="270" r="2.5" fill="rgba(232,244,248,0.9)" class="star-twinkle" style="animation-delay: 1.25s"/>
+</svg>
