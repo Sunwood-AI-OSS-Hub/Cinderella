@@ -1,6 +1,7 @@
 services:
-  claude-wrapper:
-    build: .
+  cc-api:
+    build:
+      context: ./cc-api
     ports:
       - "8081:8080"
     volumes:
@@ -24,3 +25,24 @@ services:
       - ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air
       - ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7
       - ANTHROPIC_DEFAULT_OPUS_MODEL=glm-4.7
+    networks:
+      - cinderella-network
+
+  # Discord Bot
+  discord-bot:
+    build:
+      context: ./discord-bot
+      dockerfile: Dockerfile
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - CINDERELLA_URL=http://cc-api:8080
+    depends_on:
+      - cc-api
+    networks:
+      - cinderella-network
+    restart: unless-stopped
+
+networks:
+  cinderella-network:
+    name: cinderella-network
+    driver: bridge
