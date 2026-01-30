@@ -45,6 +45,7 @@ workspace/
 
 data/.claude/*
 !data/.claude/skills
+!data/.claude/CLAUDE.md
 
 # Browser API data
 data/chrome-profile/*
@@ -55,3 +56,5 @@ plans/
 
 # tmp folder
 tmp/
+
+config/bot1/media/
