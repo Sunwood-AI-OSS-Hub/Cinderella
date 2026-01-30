@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/Sunwood-AI-OSS-Hub/Cinderella/refs/heads/main/assets/release-header-v0.2.0a.png" alt="v0.2.0 Release"/>
+<img src="https://raw.githubusercontent.com/Sunwood-AI-OSS-Hub/Cinderella/refs/heads/main/assets/release-header-v0.2.0b.png" alt="v0.2.0 Release"/>
 
 # v0.2.0 - Agentic Vision / エージェント的ビジョン
 
