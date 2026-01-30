@@ -535,3 +535,67 @@ async def handle_search_messages(req: BaseModel, bot) -> dict:
     except Exception as e:
         logger.error(f"Failed to search messages: {e}")
         return {"success": False, "error": str(e)}
+
+
+async def handle_send_file(req: BaseModel, bot) -> dict:
+    """ファイルを添付して送信"""
+    if not req.channelId:
+        return {"success": False, "error": "channelId is required for sendFile"}
+
+    if not req.filePath:
+        return {"success": False, "error": "filePath is required for sendFile"}
+
+    try:
+        channel = bot.get_channel(int(req.channelId))
+        if not channel:
+            return {"success": False, "error": f"Channel {req.channelId} not found"}
+
+        # ファイルの存在チェックとパストラバーサル対策
+        from pathlib import Path
+        MEDIA_DIR = Path("/workspace/media")
+
+        # パスを正規化して絶対パスに変換
+        file_path = Path(req.filePath).resolve()
+        media_dir_resolved = MEDIA_DIR.resolve()
+
+        # パストラバーサルチェック（/workspace/media 外へのアクセスをブロック）
+        try:
+            file_path.relative_to(media_dir_resolved)
+        except ValueError:
+            logger.warning(f"Path traversal attempt detected: {req.filePath}")
+            return {"success": False, "error": "Access denied: file must be in /workspace/media"}
+
+        if not file_path.exists():
+            return {"success": False, "error": f"File not found: {req.filePath}"}
+
+        if not file_path.is_file():
+            return {"success": False, "error": f"Path is not a file: {req.filePath}"}
+
+        # Discord Fileオブジェクトを作成
+        discord_file = discord.File(str(file_path), filename=file_path.name)
+
+        # 返信先メッセージが指定されている場合
+        reference = None
+        if req.replyTo:
+            try:
+                reply_message = await channel.fetch_message(int(req.replyTo))
+                reference = discord.MessageReference(message_id=reply_message.id, channel_id=channel.id, guild_id=channel.guild.id if hasattr(channel, 'guild') else None)
+                logger.info(f"Replying to message {req.replyTo} with file")
+            except Exception as e:
+                logger.warning(f"Failed to fetch reply message: {e}")
+
+        # ファイルを添付して送信
+        message = await channel.send(content=req.content or "", file=discord_file, reference=reference)
+
+        logger.info(f"File sent successfully: {file_path.name} (message_id: {message.id})")
+        return {
+            "success": True,
+            "data": {
+                "message_id": str(message.id),
+                "file_name": file_path.name,
+                "file_path": str(file_path)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to send file: {e}")
+        return {"success": False, "error": str(e)}

@@ -100,6 +100,41 @@ curl -s http://discord-bot:8080/v1/discord/action \
 {"success": true, "data": {"message_id": "123456789012345679"}}
 ```
 
+### Send a file (画像、動画、ドキュメントなど)
+
+ファイルを添付して送信します。画像、動画、PDFなどのファイルをDiscordに投稿できます。
+
+```json
+{
+  "action": "sendFile",
+  "channelId": "1234567890",
+  "filePath": "/workspace/media/sample.png",
+  "content": "画像を生成しました"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "message_id": "123456789012345678",
+    "file_name": "sample.png",
+    "file_path": "/workspace/media/sample.png"
+  }
+}
+```
+
+**サポートされているファイル形式:**
+- 画像: PNG, JPG, JPEG, WEBP, GIF など
+- 動画: MP4, WEBM, MOV など
+- ドキュメント: PDF, TXT, MD など
+
+**ファイルパスについて:**
+- ファイルは `/workspace/media` ディレクトリに保存してください
+- Discordに添付されたファイルは自動的に `/workspace/media` に保存されます
+- ファイル名はタイムスタンプ付きで自動保存されます（例: `20260129_230212_filename.jpg`）
+
 ## Debate Functionality
 
 The Discord bot supports bot-to-bot debates through the `!debate` command.
@@ -399,6 +434,8 @@ Users can initiate a debate using:
 - Send notifications from long-running CLI tasks.
 - Check member info for verification.
 - List channels to find the right place to post.
+- **Send generated images/files to Discord** - Use `sendFile` to share your creations with the channel.
+- **Process attachments** - Files attached to Discord are automatically saved to `/workspace/media` for you to analyze.
 
 ## Error handling
 

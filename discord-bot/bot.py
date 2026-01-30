@@ -17,11 +17,15 @@ from fastapi import FastAPI, Header, HTTPException, Depends
 from pydantic import BaseModel, Field
 from typing import Optional
 import concurrent.futures
+from datetime import datetime
+from pathlib import Path
+import aiohttp
+import aiofiles
 
 # ハンドラーをインポート
 from handlers import (
     handle_react, handle_reactions,
-    handle_send_message, handle_edit_message, handle_delete_message,
+    handle_send_message, handle_send_file, handle_edit_message, handle_delete_message,
     handle_read_messages, handle_fetch_message,
     handle_pin_message, handle_list_pins,
     handle_thread_create, handle_thread_list, handle_thread_reply,
@@ -52,6 +56,11 @@ if not DISCORD_TOKEN or not DISCORD_TOKEN.strip():
 CINDERELLA_URL = os.getenv("CINDERELLA_URL", "http://cc-api:8080")
 API_PORT = int(os.getenv("API_PORT", "8080"))
 
+# メディアディレクトリ設定
+MEDIA_DIR = Path(os.getenv("MEDIA_DIR", "/app/media"))
+# メディアディレクトリが存在しない場合は作成
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+
 # APIキー認証（設定されていない場合は認証なしで動作）
 API_KEY = os.getenv("DISCORD_BOT_API_KEY")
 
@@ -70,6 +79,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+logger.info(f"📁 メディア保存先: {MEDIA_DIR}")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -84,7 +94,7 @@ api_app = FastAPI(title="Discord Bot API")
 
 
 class DiscordActionRequest(BaseModel):
-    action: str = Field(..., description="アクション名: react, sendMessage, editMessage, deleteMessage, threadCreate, threadList, threadReply, reactions, readMessages, fetchMessage, pinMessage, listPins, memberInfo, roleInfo, emojiList, channelInfo, channelList, permissions, sticker, emojiUpload, stickerUpload, poll, searchMessages, channelCreate, categoryCreate, channelEdit, channelMove, channelDelete, categoryEdit, categoryDelete, voiceStatus, eventList, roleAdd, roleRemove, timeout, kick, ban")
+    action: str = Field(..., description="アクション名: react, sendMessage, sendFile, editMessage, deleteMessage, threadCreate, threadList, threadReply, reactions, readMessages, fetchMessage, pinMessage, listPins, memberInfo, roleInfo, emojiList, channelInfo, channelList, permissions, sticker, emojiUpload, stickerUpload, poll, searchMessages, channelCreate, categoryCreate, channelEdit, channelMove, channelDelete, categoryEdit, categoryDelete, voiceStatus, eventList, roleAdd, roleRemove, timeout, kick, ban")
     # 共通パラメータ
     channelId: Optional[str] = Field(None, description="チャンネルID")
     messageId: Optional[str] = Field(None, description="メッセージID")
@@ -94,6 +104,8 @@ class DiscordActionRequest(BaseModel):
     to: Optional[str] = Field(None, description="送信先 (channel:<id> または user:<id>)")
     content: Optional[str] = Field(None, description="メッセージ内容")
     replyTo: Optional[str] = Field(None, description="返信先メッセージID")
+    # sendFile用
+    filePath: Optional[str] = Field(None, description="送信するファイルパス")
     # react用
     emoji: Optional[str] = Field(None, description="リアクション絵文字")
     # スレッド用
@@ -154,6 +166,52 @@ async def on_message(message):
     # Bot自身のメッセージは無視
     if message.author == bot.user:
         return
+
+    # ========================================
+    # 添付ファイルのダウンロード処理
+    # ========================================
+    if message.attachments:
+        logger.info(f"📎 添付ファイルを検出: {len(message.attachments)} 個")
+        logger.info(f"   チャンネル: {message.channel.name} (ID: {message.channel.id})")
+        logger.info(f"   送信者: {message.author.display_name} (ID: {message.author.id})")
+
+        downloaded_files = []
+        for attachment in message.attachments:
+            file_path = await download_attachment(attachment, message)
+            if file_path:
+                downloaded_files.append({
+                    "name": attachment.filename,
+                    "path": file_path,
+                    "size": attachment.size
+                })
+
+        # 通知メッセージを送信
+        if downloaded_files:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            notification = f"📁 **添付ファイルを保存しました**\n"
+            notification += f"⏰ {timestamp}\n"
+            notification += f"👤 送信者: {message.author.display_name}\n"
+            notification += f"📂 保存先: `/workspace/media`\n\n"
+
+            for i, file_info in enumerate(downloaded_files, 1):
+                # サイズを人間が読みやすい形式に変換
+                size = file_info["size"]
+                if size >= 1024 * 1024:
+                    size_str = f"{size / (1024 * 1024):.2f} MB"
+                elif size >= 1024:
+                    size_str = f"{size / 1024:.2f} KB"
+                else:
+                    size_str = f"{size} bytes"
+
+                # ファイルパスを /workspace/media に変換して表示
+                display_path = file_info['path'].replace('/app/media', '/workspace/media')
+
+                notification += f"**{i}. {file_info['name']}**\n"
+                notification += f"   - ファイルパス: `{display_path}`\n"
+                notification += f"   - サイズ: {size_str}\n"
+
+            await message.channel.send(notification)
+            logger.info(f"📤 通知メッセージを送信しました")
 
     # 議論中のチャンネルかチェック
     context = debate_manager.get_context(message.channel.id)
@@ -275,7 +333,17 @@ async def process_ask(ctx, prompt: str):
             logger.info("📡 [3/5] cc-api (Claude Code) にリクエスト送信")
             logger.info("  → Claude CodeはSKILL.mdに従ってDiscord APIを使用可能")
             logger.info("  → allowed_tools: ['Read', 'Bash', 'Edit', 'discord']")
-            
+
+            # 直近のチャット履歴を取得（添付ファイルの通知を含むため）
+            chat_history = ""
+            try:
+                async for msg in ctx.channel.history(limit=10):
+                    # 履歴をフォーマット（Botのメッセージも含める）
+                    chat_history += f"[{msg.created_at.strftime('%H:%M')}] {msg.author.display_name}: {msg.content[:200]}\n"
+                chat_history = chat_history.strip()
+            except Exception as e:
+                logger.warning(f"Failed to fetch chat history: {e}")
+
             # プロンプトにDiscord操作のための情報を追加
             # Guild IDの安全な取得（DMの場合は'N/A'）
             guild_id = 'N/A'
@@ -286,22 +354,16 @@ async def process_ask(ctx, prompt: str):
 
 ---
 【Discord操作情報】
-あなたは現在Discord上で動作しています。以下の情報を使用して、必要に応じてDiscord APIを呼び出してください。
+あなたは現在Discord上で動作しています。以下の情報を使用して、必要に応じて使用してください。
 
 - Channel ID: {ctx.channel.id}
 - Guild ID: {guild_id}
 - User ID: {ctx.message.author.id}
 - Message ID: {ctx.message.id}
 
-Discord APIエンドポイント: http://discord-bot:8080/v1/discord/action
+【直近のチャット履歴】
+{chat_history if chat_history else '(なし)'}
 
-使用可能なアクション:
-- sendMessage: メッセージを送信（replyToで返信可能）
-- react: リアクションを追加
-- readMessages: メッセージを読み取り
-- その他多数（SKILL.md参照）
-
-メッセージを送信する場合は、replyToに元のメッセージIDを指定して返信として送信してください。
 """
             
             loop = asyncio.get_running_loop()
@@ -380,6 +442,61 @@ async def update_reaction(message, new_emoji):
         await message.add_reaction(new_emoji)
     except Exception as e:
         logger.error(f"Failed to update reaction: {e}")
+
+
+async def download_attachment(attachment, message):
+    """添付ファイルをダウンロードして保存
+
+    Args:
+        attachment: DiscordのAttachmentオブジェクト
+        message: メッセージオブジェクト（メタデータ用）
+
+    Returns:
+        保存したファイルパス、失敗時はNone
+    """
+    try:
+        # タイムスタンプを生成 (YYYYMMDD_HHMMSS)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # ファイル名を構築: タイムスタンプ_元のファイル名
+        original_filename = attachment.filename
+        safe_filename = original_filename.replace(" ", "_").replace("/", "_")
+        new_filename = f"{timestamp}_{safe_filename}"
+
+        # 保存先パス
+        file_path = MEDIA_DIR / new_filename
+
+        # ファイルをダウンロード（タイムアウト設定）
+        timeout = aiohttp.ClientTimeout(total=60)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(attachment.url) as resp:
+                if resp.status == 200:
+                    async with aiofiles.open(file_path, 'wb') as f:
+                        await f.write(await resp.read())
+                else:
+                    logger.error(f"HTTPエラー: ステータス {resp.status} でダウンロード失敗: {attachment.url}")
+                    return None
+
+        logger.info(f"✅ 添付ファイル保存完了: {new_filename}")
+        logger.info(f"   - オリジナル名: {original_filename}")
+        logger.info(f"   - サイズ: {attachment.size} bytes")
+        logger.info(f"   - Content-Type: {attachment.content_type}")
+        logger.info(f"   - 保存先: {file_path}")
+
+        return str(file_path)
+
+    except aiohttp.ClientError as e:
+        logger.error(f"HTTPエラー: 添付ファイルのダウンロードに失敗: {e}")
+        return None
+    except OSError as e:
+        logger.error(f"ファイルシステムエラー: 添付ファイルの保存に失敗: {e}")
+        return None
+    except asyncio.TimeoutError:
+        logger.error("ダウンロードがタイムアウトしました")
+        return None
+    except Exception as e:
+        logger.error(f"予期しないエラー: 添付ファイルの保存に失敗: {e}")
+        return None
 
 
 @bot.command()
@@ -493,6 +610,8 @@ async def discord_action(req: DiscordActionRequest):
             result = run_async(handle_reactions(req, bot))
         elif action == "sendMessage":
             result = run_async(handle_send_message(req, bot))
+        elif action == "sendFile":
+            result = run_async(handle_send_file(req, bot))
         elif action == "editMessage":
             result = run_async(handle_edit_message(req, bot))
         elif action == "deleteMessage":

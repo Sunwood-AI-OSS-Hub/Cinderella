@@ -16,6 +16,7 @@ __all__ = [
     "handle_react",
     "handle_reactions",
     "handle_send_message",
+    "handle_send_file",
     "handle_edit_message",
     "handle_delete_message",
     "handle_read_messages",
