@@ -445,10 +445,133 @@ def test_search_messages(guild_id: str, channel_id: str):
         return False
 
 
+def test_send_file(channel_id: str):
+    """ファイル送信テスト"""
+    print(f"=== ファイル送信テスト ===")
+    try:
+        import subprocess
+        import tempfile
+        import os
+
+        # テスト用ファイルを作成（discord-botコンテナ内の /workspace/media に）
+        test_content = "🧪 sendFile テスト用ファイルです\n" \
+                      f"作成時刻: {time.strftime('%Y-%m-%d %H:%M:%S')}\n" \
+                      "これは Cinderella discord-bot API のテストです。"
+
+        # docker exec でコンテナ内にファイルを作成
+        container_name = "cinderella-discord-bot-1"
+        test_file_path = "/workspace/media/test_sendfile.txt"
+
+        # ファイルを作成
+        create_result = subprocess.run(
+            ["docker", "exec", container_name, "sh", "-c",
+             f"echo '{test_content}' > {test_file_path}"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if create_result.returncode != 0:
+            print(f"⚠️ テストファイル作成スキップ: {create_result.stderr}")
+            print("   手動でファイルを用意してください\n")
+            return False
+
+        print(f"📄 テストファイル作成: {test_file_path}")
+
+        # ファイルを送信
+        response = requests.post(
+            f"{DISCORD_BOT_API_URL}/v1/discord/action",
+            json={
+                "action": "sendFile",
+                "channelId": channel_id,
+                "filePath": test_file_path,
+                "content": "📎 ファイル送信テストです"
+            },
+            timeout=10
+        )
+        result = response.json()
+        print(f"Status: {response.status_code}")
+        print(f"Response: {json.dumps(result, ensure_ascii=False, indent=2)}")
+
+        if result.get("success"):
+            file_name = result.get("data", {}).get("file_name")
+            print(f"✅ ファイル送信成功 (file_name: {file_name})\n")
+            return True
+        else:
+            print(f"❌ ファイル送信失敗: {result.get('error')}\n")
+            return False
+    except Exception as e:
+        print(f"❌ 例外発生: {e}\n")
+        return False
+
+
+def test_send_image(channel_id: str):
+    """画像ファイル送信テスト"""
+    print(f"=== 画像ファイル送信テスト ===")
+    try:
+        import subprocess
+
+        container_name = "cinderella-discord-bot-1"
+        test_image_path = "/workspace/media/sample.png"
+
+        # 画像ファイルがコンテナ内にあるか確認
+        check_result = subprocess.run(
+            ["docker", "exec", container_name, "test", "-f", test_image_path],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if check_result.returncode != 0:
+            # ファイルがなければコピー
+            print(f"📥 画像ファイルをコンテナにコピーします...")
+            copy_result = subprocess.run(
+                ["docker", "cp", "/prj/Cinderella/discord-bot/tests/sample.png",
+                 f"{container_name}:{test_image_path}"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if copy_result.returncode != 0:
+                print(f"⚠️ 画像ファイルコピーに失敗: {copy_result.stderr}")
+                print("   テストをスキップします\n")
+                return False
+            print(f"✅ 画像ファイルをコピーしました: {test_image_path}")
+        else:
+            print(f"✅ 画像ファイルが存在します: {test_image_path}")
+
+        # 画像を送信
+        print(f"📤 画像をDiscordに送信します...")
+        response = requests.post(
+            f"{DISCORD_BOT_API_URL}/v1/discord/action",
+            json={
+                "action": "sendFile",
+                "channelId": channel_id,
+                "filePath": test_image_path,
+                "content": "🖼️ 画像送信テスト (sample.png)"
+            },
+            timeout=30  # 画像ファイルは大きいのでタイムアウトを長く
+        )
+        result = response.json()
+        print(f"Status: {response.status_code}")
+        print(f"Response: {json.dumps(result, ensure_ascii=False, indent=2)}")
+
+        if result.get("success"):
+            file_name = result.get("data", {}).get("file_name")
+            print(f"✅ 画像送信成功 (file_name: {file_name})\n")
+            return True
+        else:
+            print(f"❌ 画像送信失敗: {result.get('error')}\n")
+            return False
+    except Exception as e:
+        print(f"❌ 例外発生: {e}\n")
+        return False
+
+
 def main():
     """メインテストランナー"""
     print("🧪 discord-bot API メッセージハンドラーテスト開始\n")
-    print("17個のメッセージハンドラーをテストします\n")
+    print("19個のメッセージハンドラーをテストします\n")
 
     # ヘルスチェック
     if not test_health():
@@ -465,7 +588,7 @@ def main():
     results = {"passed": 0, "failed": 0, "skipped": 0}
 
     print("="*50)
-    print("📨 Message Handlers (17 tests)")
+    print("📨 Message Handlers (19 tests)")
     print("="*50 + "\n")
 
     # 1. メッセージ送信
@@ -582,7 +705,23 @@ def main():
 
     time.sleep(1)
 
-    # 15. メッセージ削除（最後）- スキップして残す
+    # 15. ファイル送信（テキスト）
+    if test_send_file(channel_id):
+        results["passed"] += 1
+    else:
+        results["failed"] += 1
+
+    time.sleep(1)
+
+    # 16. 画像ファイル送信
+    if test_send_image(channel_id):
+        results["passed"] += 1
+    else:
+        results["failed"] += 1
+
+    time.sleep(1)
+
+    # 17. メッセージ削除（最後）- スキップして残す
     # if test_delete_message(channel_id, message_id):
     #     results["passed"] += 1
     # else:
@@ -593,7 +732,7 @@ def main():
 
     time.sleep(1)
 
-    # 16. メッセージ返信（新機能）
+    # 18. メッセージ返信（新機能）
     reply_message_id = test_send_message_reply(channel_id, message_id, "📩 これは返信テストです（replyTo機能）")
     if reply_message_id:
         results["passed"] += 1
@@ -602,7 +741,7 @@ def main():
 
     time.sleep(1)
 
-    # 17. 返信メッセージ削除 - スキップして残す
+    # 19. 返信メッセージ削除 - スキップして残す
     # if reply_message_id and test_delete_message(channel_id, reply_message_id):
     #     results["passed"] += 1
     # else:
@@ -618,7 +757,7 @@ def main():
     print(f"✅ パス: {results['passed']}")
     print(f"❌ 失敗: {results['failed']}")
     print(f"⚠️ スキップ: {results['skipped']}")
-    print(f"📋 合計: {results['passed'] + results['failed'] + results['skipped']}/17")
+    print(f"📋 合計: {results['passed'] + results['failed'] + results['skipped']}/19")
 
     if results['failed'] == 0:
         print("\n🎉 すべてのテストが成功しました！")
