@@ -3,14 +3,15 @@
 Agentic Vision in Gemini 3 Flash - 基本 API スクリプト
 
 Usage:
-    python agentic_vision.py <image_path_or_url> "<prompt>"
+    export GOOGLE_API_KEY=your_api_key
+    python agentic_vision.py <image_path> "<prompt>"
     python agentic_vision.py image.jpg "この画像の詳細を分析して"
-    python agentic_vision.py https://example.com/img.png "Count objects"
+    python agentic_vision.py image.png "画像内のオブジェクトを検出してバウンディングボックスを描画して"
 """
 
 import argparse
-import base64
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -24,185 +25,170 @@ except ImportError:
 
 
 def load_image(source: str) -> types.Part:
-    """画像をファイルパスまたはURLから読み込む"""
-    if source.startswith(('http://', 'https://')):
-        # URL から読み込み
-        mime_type = 'image/jpeg'
-        if source.lower().endswith('.png'):
-            mime_type = 'image/png'
-        elif source.lower().endswith('.gif'):
-            mime_type = 'image/gif'
-        elif source.lower().endswith('.webp'):
-            mime_type = 'image/webp'
-        
-        return types.Part.from_uri(file_uri=source, mime_type=mime_type)
-    else:
-        # ローカルファイルから読み込み
-        file_path = Path(source)
-        if not file_path.exists():
-            raise FileNotFoundError(f"Image not found: {source}")
-        
-        mime_type = {
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.png': 'image/png',
-            '.gif': 'image/gif',
-            '.webp': 'image/webp',
-        }.get(file_path.suffix.lower(), 'image/jpeg')
-        
-        with open(file_path, 'rb') as f:
-            data = base64.standard_b64encode(f.read()).decode('utf-8')
-        
-        return types.Part.from_bytes(data=data, mime_type=mime_type)
+    """画像をファイルパスから読み込む（生バイナリ）"""
+    file_path = Path(source)
+    if not file_path.exists():
+        raise FileNotFoundError(f"Image not found: {source}")
+
+    mime_type = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+    }.get(file_path.suffix.lower(), 'image/jpeg')
+
+    # 生バイナリデータを読み込む
+    with open(file_path, 'rb') as f:
+        data = f.read()
+
+    return types.Part.from_bytes(data=data, mime_type=mime_type)
 
 
 def analyze_with_agentic_vision(
-    image_source: str,
+    image_path: str,
     prompt: str,
     model: str = "gemini-3-flash-preview",
+    thinking_level: str = "MEDIUM",
     temperature: float = 0.7,
     verbose: bool = False
 ) -> dict:
     """
     Agentic Vision で画像を分析
-    
+
     Args:
-        image_source: 画像のパスまたはURL
+        image_path: 画像のパス
         prompt: 分析プロンプト
         model: 使用するモデル名
+        thinking_level: 思考レベル (LOW/MEDIUM/HIGH)
         temperature: 生成の創造性パラメータ
         verbose: 詳細出力を有効にするか
-    
+
     Returns:
-        dict: 分析結果（text, code, execution_results, images）
+        dict: 分析結果（text, code, execution_results）
     """
-    client = genai.Client()
-    
-    # 画像を読み込み
-    image = load_image(image_source)
-    
-    # Code Execution を有効化した設定
-    config = types.GenerateContentConfig(
-        tools=[types.Tool(code_execution=types.ToolCodeExecution)],
-        temperature=temperature,
-    )
-    
-    # API 呼び出し
-    response = client.models.generate_content(
+    # APIキーを環境変数から取得
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise ValueError(
+            "GOOGLE_API_KEY environment variable not set. "
+            "Get your API key at https://ai.google.dev/"
+        )
+
+    client = genai.Client(api_key=api_key)
+
+    # チャットセッションを作成（推奨）
+    chat = client.chats.create(
         model=model,
-        contents=[image, prompt],
-        config=config,
+        config=types.GenerateContentConfig(
+            tools=[types.Tool(code_execution=types.ToolCodeExecution)],
+            thinking_config=types.ThinkingConfig(thinking_level=thinking_level),
+            temperature=temperature,
+        ),
     )
-    
+
+    # 画像を読み込み
+    image = load_image(image_path)
+
+    if verbose:
+        print(f"Model: {model}")
+        print(f"Thinking Level: {thinking_level}")
+        print(f"Image: {image_path} ({len(image.data) if hasattr(image, 'data') else 'N/A'} bytes)")
+        print(f"Prompt: {prompt}")
+        print("-" * 50)
+
+    # API 呼び出し
+    response = chat.send_message(message=[image, prompt])
+
     # 結果を構造化して返す
     results = {
-        'text': [],
+        'text': response.text,
         'code': [],
         'execution_results': [],
-        'images': []
     }
-    
-    for candidate in response.candidates:
-        for part in candidate.content.parts:
-            if hasattr(part, 'text') and part.text:
-                results['text'].append(part.text)
-                if verbose:
-                    print(f"[TEXT] {part.text}")
-            
-            if hasattr(part, 'executable_code'):
-                code = part.executable_code.code
+
+    # 実行されたコードを確認
+    if hasattr(response, 'candidates') and response.candidates:
+        for part in response.candidates[0].content.parts:
+            if hasattr(part, 'executable') and part.executable:
+                code = getattr(part.executable, 'code', '')
                 results['code'].append(code)
                 if verbose:
                     print(f"[CODE]\n{code}")
-            
-            if hasattr(part, 'code_execution_result'):
-                output = part.code_execution_result.output
+
+            if hasattr(part, 'code_execution_result') and part.code_execution_result:
+                output = getattr(part.code_execution_result, 'output', '')
                 results['execution_results'].append(output)
                 if verbose:
-                    print(f"[RESULT] {output}")
-            
-            if hasattr(part, 'inline_data'):
-                results['images'].append({
-                    'mime_type': part.inline_data.mime_type,
-                    'data': part.inline_data.data
-                })
-                if verbose:
-                    print(f"[IMAGE] Generated image ({part.inline_data.mime_type})")
-    
+                    print(f"[RESULT]\n{output}")
+
     return results
-
-
-def save_generated_images(results: dict, output_dir: str = ".") -> list:
-    """生成された画像を保存"""
-    saved_paths = []
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    
-    for i, img_data in enumerate(results.get('images', [])):
-        ext = img_data['mime_type'].split('/')[-1]
-        filename = output_path / f"generated_{i+1}.{ext}"
-        
-        with open(filename, 'wb') as f:
-            f.write(base64.b64decode(img_data['data']))
-        
-        saved_paths.append(str(filename))
-        print(f"Saved: {filename}")
-    
-    return saved_paths
 
 
 def main():
     parser = argparse.ArgumentParser(
         description='Agentic Vision in Gemini 3 Flash',
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # 物体検出
+  python agentic_vision.py image.jpg "画像内のオブジェクトを検出してバウンディングボックスを描画して"
+
+  # オブジェクトカウント
+  python agentic_vision.py image.png "画像内のオブジェクトを数えて各カテゴリの個数を報告して"
+
+  # 詳細分析
+  python agentic_vision.py photo.jpg "この画像の詳細を分析して"
+        """
     )
-    parser.add_argument('image', help='画像ファイルパスまたはURL')
+    parser.add_argument('image', help='画像ファイルパス')
     parser.add_argument('prompt', help='分析プロンプト')
     parser.add_argument('--model', default='gemini-3-flash-preview',
                        help='使用するモデル (default: gemini-3-flash-preview)')
+    parser.add_argument('--thinking', choices=['LOW', 'MEDIUM', 'HIGH'],
+                       default='MEDIUM', help='思考レベル (default: MEDIUM)')
     parser.add_argument('--temperature', type=float, default=0.7,
                        help='生成の創造性 (default: 0.7)')
-    parser.add_argument('--output-dir', default='.',
-                       help='生成画像の保存先 (default: current directory)')
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='詳細出力を有効化')
     parser.add_argument('--json', action='store_true',
                        help='結果をJSON形式で出力')
-    
+
     args = parser.parse_args()
-    
+
     try:
         results = analyze_with_agentic_vision(
-            image_source=args.image,
+            image_path=args.image,
             prompt=args.prompt,
             model=args.model,
+            thinking_level=args.thinking,
             temperature=args.temperature,
             verbose=args.verbose
         )
-        
+
         if args.json:
-            # JSON出力（画像データは除外）
+            # JSON出力
             output = {
                 'text': results['text'],
                 'code': results['code'],
                 'execution_results': results['execution_results'],
-                'image_count': len(results['images'])
             }
             print(json.dumps(output, ensure_ascii=False, indent=2))
         else:
             # テキスト出力
             print("\n=== Analysis Result ===")
-            print('\n'.join(results['text']))
-        
-        # 生成された画像を保存
-        if results['images']:
-            save_generated_images(results, args.output_dir)
-    
+            print(results['text'])
+
     except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
