@@ -17,6 +17,9 @@ RUN npm install -g @anthropic-ai/claude-code
 # 依存関係をインストール
 RUN uv pip install --system fastapi uvicorn[standard] pydantic
 
+# Google Genai SDK (agentic-vision-gemini スキル用)
+RUN uv pip install --system google-genai
+
 # ソースコードをコピー（cc-apiディレクトリからコピー）
 COPY server.py .
 
