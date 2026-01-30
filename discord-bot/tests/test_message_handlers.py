@@ -10,8 +10,9 @@ import requests
 import json
 import time
 import sys
+import os
 
-DISCORD_BOT_API_URL = "http://127.0.0.1:8082"
+DISCORD_BOT_API_URL = os.getenv("DISCORD_BOT_API_URL", "http://127.0.0.1:8082")
 
 # デフォルトのチャンネルIDとギルドID（テスト用）
 # テスト用チャンネル: https://discord.com/channels/1188045372526964796/1466415185282732220

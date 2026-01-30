@@ -466,12 +466,16 @@ async def download_attachment(attachment, message):
         # 保存先パス
         file_path = MEDIA_DIR / new_filename
 
-        # ファイルをダウンロード
-        async with aiohttp.ClientSession() as session:
+        # ファイルをダウンロード（タイムアウト設定）
+        timeout = aiohttp.ClientTimeout(total=60)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(attachment.url) as resp:
                 if resp.status == 200:
                     async with aiofiles.open(file_path, 'wb') as f:
                         await f.write(await resp.read())
+                else:
+                    logger.error(f"HTTPエラー: ステータス {resp.status} でダウンロード失敗: {attachment.url}")
+                    return None
 
         logger.info(f"✅ 添付ファイル保存完了: {new_filename}")
         logger.info(f"   - オリジナル名: {original_filename}")
@@ -481,8 +485,17 @@ async def download_attachment(attachment, message):
 
         return str(file_path)
 
+    except aiohttp.ClientError as e:
+        logger.error(f"HTTPエラー: 添付ファイルのダウンロードに失敗: {e}")
+        return None
+    except OSError as e:
+        logger.error(f"ファイルシステムエラー: 添付ファイルの保存に失敗: {e}")
+        return None
+    except asyncio.TimeoutError:
+        logger.error("ダウンロードがタイムアウトしました")
+        return None
     except Exception as e:
-        logger.error(f"❌ 添付ファイルの保存に失敗: {e}")
+        logger.error(f"予期しないエラー: 添付ファイルの保存に失敗: {e}")
         return None
 
 
