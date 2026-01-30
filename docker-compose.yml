@@ -9,6 +9,8 @@ services:
       - ./data/.claude:/home/cinderella/.claude
       # プロジェクトディレクトリをマウント
       - ./config/bot1/workspace:/workspace:rw
+      # メディアディレクトリ（Claude Codeからアクセス可能）
+      - ./config/bot1/media:/workspace/media:rw
     environment:
       # ========================================
       # API設定（どちらか一方を有効にしてください）
@@ -25,6 +27,10 @@ services:
       - ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air
       - ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7
       - ANTHROPIC_DEFAULT_OPUS_MODEL=glm-4.7
+
+      # Google API Key (agentic-vision-gemini スキル用)
+      # https://ai.google.dev/ でAPIキーを取得してください
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
 
       # Claude Code オプション
       # --dangerously-skip-permissions を有効にするかどうか
@@ -56,11 +62,14 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8082:8080"  # Discord Bot API
-
+    volumes:
+      # メディア保存用ディレクトリ（cc-apiと共通）
+      - ./config/bot1/media:/workspace/media
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - CINDERELLA_URL=http://cc-api:8080
       - API_PORT=8080
+      - MEDIA_DIR=/workspace/media
     depends_on:
       - cc-api
     networks:
