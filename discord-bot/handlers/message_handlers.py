@@ -550,11 +550,26 @@ async def handle_send_file(req: BaseModel, bot) -> dict:
         if not channel:
             return {"success": False, "error": f"Channel {req.channelId} not found"}
 
-        # ファイルの存在チェック
+        # ファイルの存在チェックとパストラバーサル対策
         from pathlib import Path
-        file_path = Path(req.filePath)
+        MEDIA_DIR = Path("/workspace/media")
+
+        # パスを正規化して絶対パスに変換
+        file_path = Path(req.filePath).resolve()
+        media_dir_resolved = MEDIA_DIR.resolve()
+
+        # パストラバーサルチェック（/workspace/media 外へのアクセスをブロック）
+        try:
+            file_path.relative_to(media_dir_resolved)
+        except ValueError:
+            logger.warning(f"Path traversal attempt detected: {req.filePath}")
+            return {"success": False, "error": "Access denied: file must be in /workspace/media"}
+
         if not file_path.exists():
             return {"success": False, "error": f"File not found: {req.filePath}"}
+
+        if not file_path.is_file():
+            return {"success": False, "error": f"Path is not a file: {req.filePath}"}
 
         # Discord Fileオブジェクトを作成
         discord_file = discord.File(str(file_path), filename=file_path.name)

@@ -187,8 +187,8 @@ Examples:
         sys.exit(1)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
+        import logging
+        logging.error(f"Unexpected error: {e}", exc_info=True)
         sys.exit(1)
 
 

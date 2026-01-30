@@ -8,10 +8,11 @@ Gemini 3 Flash の Agentic Vision を使った画像分析をテストします�
 import requests
 import json
 import subprocess
+import os
 from pathlib import Path
 
 
-API_URL = "http://127.0.0.1:8081/v1/claude/run"
+API_URL = os.getenv("CLAUDE_API_URL", "http://127.0.0.1:8081/v1/claude/run")
 SAMPLE_IMAGE = "/workspace/tests/sample.png"
 
 
