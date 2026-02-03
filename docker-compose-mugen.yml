@@ -1,0 +1,90 @@
+services:
+  cc-api:
+    build:
+      context: ./cc-api
+    ports:
+      - "${CC_API_PORT:-8081}:8080"
+    volumes:
+      # Claude Code 設定ディレクトリ（cinderellaユーザー用）
+      - ./data/.claude:/home/cinderella/.claude
+      # プロジェクトディレクトリをマウント
+      - ./config/agent2/MultimediaOS-MUGEN:/workspace
+      # メディアディレクトリ（Claude Codeからアクセス可能）
+    environment:
+      # ========================================
+      # API設定（どちらか一方を有効にしてください）
+      # ========================================
+
+      # Anthropic (公式Claudeモデル) を使用する場合
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+      # Z.AI (GLMモデル) を使用する場合
+      - ANTHROPIC_API_KEY=${ZAI_API_KEY}
+      - ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic
+
+      # GLMモデル設定 (Z.AIを使用する場合のみ有効)
+      - ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air
+      - ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7
+      - ANTHROPIC_DEFAULT_OPUS_MODEL=glm-4.7
+
+      # Google API Key (agentic-vision-gemini スキル用)
+      # https://ai.google.dev/ でAPIキーを取得してください
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+
+      # FAL API Key (fal-ai スキル用)
+      # https://fal.ai/ でAPIキーを取得してください
+      - FAL_KEY=${FAL_KEY}
+
+      # GitHub 設定（エージェント別）
+      # GitHub Personal Access Token for AYANO
+      # https://github.com/settings/tokens でトークンを取得してください
+      - GH_PAT=${GH_PAT_AYANO}
+
+      # Claude Code オプション
+      # --dangerously-skip-permissions を有効にするかどうか
+      - CLAUDE_SKIP_PERMISSIONS=${CLAUDE_SKIP_PERMISSIONS}
+    networks:
+      - cinderella-network
+
+  # Browser API
+  browser-api:
+    build:
+      context: ./browser-api
+    ports:
+      - "${BROWSER_API_PORT:-8083}:8000"    # API
+      - "${BROWSER_VNC_PORT:-5900}:5900"    # VNC
+      - "${BROWSER_NOVNC_PORT:-7900}:7900"  # noVNC
+    volumes:
+      - ./data/screenshots:/app/screenshots
+      - ./data/chrome-profile:/app/chrome-profile
+    environment:
+      - ALLOWED_ORIGINS=*
+    networks:
+      - cinderella-network
+    restart: unless-stopped
+
+  # Discord Bot
+  discord-bot:
+    build:
+      context: ./discord-bot
+      dockerfile: Dockerfile
+    ports:
+      - "${DISCORD_BOT_PORT:-8082}:8080"  # Discord Bot API
+    volumes:
+      # メディア保存用ディレクトリ（cc-apiと共通）
+      - ./config/agent2/MultimediaOS-MUGEN/media:/workspace/media
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - CINDERELLA_URL=http://cc-api:8080
+      - API_PORT=8080
+      - MEDIA_DIR=/workspace/media
+    depends_on:
+      - cc-api
+    networks:
+      - cinderella-network
+    restart: unless-stopped
+
+networks:
+  cinderella-network:
+    name: cinderella-network
+    driver: bridge
