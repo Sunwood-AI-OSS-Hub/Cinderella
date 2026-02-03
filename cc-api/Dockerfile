@@ -9,7 +9,9 @@ RUN apt-get update && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-# cinderellaユーザーを作成し、sudoグループに追加（パスワードなしでsudo可能）
+# cinderellaユーザーを作成し、sudoグループに追加
+# 注意: Claude Codeが一部のツールでsudoを必要とする場合があるため、NOPASSWDを設定
+# セキュリティ: 本番環境では必要最小限のコマンドのみを許可することを推奨
 RUN useradd -m -s /bin/bash cinderella && \
     usermod -aG sudo cinderella && \
     echo 'cinderella ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/cinderella && \
@@ -18,11 +20,12 @@ RUN useradd -m -s /bin/bash cinderella && \
 # Claude Codeをインストール（rootでインストール後、所有権を変更）
 RUN npm install -g @anthropic-ai/claude-code
 
-# 依存関係をインストール
-RUN uv pip install --system fastapi uvicorn[standard] pydantic
-
-# Google Genai SDK (agentic-vision-gemini スキル用)
-RUN uv pip install --system google-genai
+# 依存関係をインストール（レイヤー最適化のためまとめて実行）
+RUN uv pip install --system \
+    fastapi \
+    uvicorn[standard] \
+    pydantic \
+    google-genai
 
 # ソースコードをコピー（cc-apiディレクトリからコピー）
 COPY server.py .
