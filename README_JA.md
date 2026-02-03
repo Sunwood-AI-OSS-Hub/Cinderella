@@ -316,6 +316,89 @@ ANTHROPIC_DEFAULT_OPUS_MODEL=glm-4.7
 
 または、docker-compose.ymlで事前に設定されています。
 
+## Mugen環境（MultimediaOS-MUGEN）
+
+MultimediaOS-MUGENプロジェクト向けに最適化されたDocker環境設定が用意されています。
+
+### Mugen環境の特徴
+
+- **プロジェクトディレクトリ**: `config/agent2/MultimediaOS-MUGEN` をワークスペースとしてマウント
+- **メディアディレクトリ**: Claude Codeからメディアファイルにアクセス可能
+- **Git設定**: エージェントごとのGitユーザー設定をサポート
+- **GitHub統合**: エージェントごとのGitHub PAT（Personal Access Token）をサポート
+
+### Mugen環境のセットアップ
+
+1. **`.env` ファイルにGitとGitHubの設定を追加**
+
+```bash
+# GitHub Personal Access Token for AYANO
+GH_PAT_AYANO=your_github_pat_here
+
+# Git ユーザー設定 for AYANO
+GIT_USER_NAME_AYANO=AYANO
+GIT_USER_EMAIL_AYANO=ayano@example.com
+```
+
+2. **`.env` ファイルに追加のAPIキーを設定**
+
+```bash
+# FAL API Key (fal-ai スキル用)
+FAL_KEY=your_fal_key_here
+
+# Google API Key (agentic-vision-gemini スキル用)
+GOOGLE_API_KEY=your_google_api_key_here
+```
+
+3. **Mugen環境用のdocker-composeを起動**
+
+```bash
+docker compose -f docker-compose-mugen.yml up -d
+```
+
+### エージェント別設定
+
+Mugen環境では、複数のエージェントがそれぞれのGit/GitHub設定を持つことができます：
+
+| エージェント | Gitユーザー名 | Gitメール | GitHub PAT |
+|-------------|--------------|-----------|------------|
+| AYANO | `GIT_USER_NAME_AYANO` | `GIT_USER_EMAIL_AYANO` | `GH_PAT_AYANO` |
+| SEIRA | `GIT_USER_NAME_SEIRA` | `GIT_USER_EMAIL_SEIRA` | `GH_PAT_SEIRA` |
+| MIREL | `GIT_USER_NAME_MIREL` | `GIT_USER_EMAIL_MIREL` | `GH_PAT_MIREL` |
+
+### ポート設定
+
+Mugen環境では、`.env` ファイルで各サービスのポートをカスタマイズできます：
+
+```bash
+# CC API ポート (デフォルト: 8081)
+CC_API_PORT=8081
+
+# Browser API ポート (デフォルト: 8083)
+BROWSER_API_PORT=8083
+
+# Browser VNC ポート (デフォルト: 5900)
+BROWSER_VNC_PORT=5900
+
+# Browser noVNC ポート (デフォルト: 7900)
+BROWSER_NOVNC_PORT=7900
+
+# Discord Bot ポート (デフォルト: 8082)
+DISCORD_BOT_PORT=8082
+```
+
+### ファイル構造（Mugen環境）
+
+```
+cinderella/
+├── docker-compose-mugen.yml     # Mugen環境用のdocker-compose設定
+├── config/agent2/MultimediaOS-MUGEN/  # ワークスペース（プロジェクトディレクトリ）
+├── cc-api/
+│   ├── entrypoint.sh            # Git設定用のエントリーポイントスクリプト
+│   └── Dockerfile               # Gitとentrypointのサポートを含む
+└── .SourceSageignore            # SourceSage解析除外設定（config/ディレクトリ除外）
+```
+
 ## ロギング
 
 `cc-api` と `discord-bot` の両方が、デバッグと監視のための詳細なロギングをサポートしています。

@@ -105,3 +105,6 @@ LICENSE
 .git/
 .claude/
 .github/
+
+
+config/

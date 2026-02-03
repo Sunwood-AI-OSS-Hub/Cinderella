@@ -317,6 +317,89 @@ ANTHROPIC_DEFAULT_OPUS_MODEL=glm-4.7
 
 Alternatively, these are pre-configured in docker-compose.yml.
 
+## Mugen Environment (MultimediaOS-MUGEN)
+
+A Docker environment configuration optimized for the MultimediaOS-MUGEN project is also available.
+
+### Mugen Environment Features
+
+- **Project Directory**: Mounts `config/agent2/MultimediaOS-MUGEN` as the workspace
+- **Media Directory**: Accessible from Claude Code for media file operations
+- **Git Configuration**: Supports per-agent Git user configuration
+- **GitHub Integration**: Supports per-agent GitHub PAT (Personal Access Token)
+
+### Mugen Environment Setup
+
+1. **Add Git and GitHub settings to `.env` file**
+
+```bash
+# GitHub Personal Access Token for AYANO
+GH_PAT_AYANO=your_github_pat_here
+
+# Git user settings for AYANO
+GIT_USER_NAME_AYANO=AYANO
+GIT_USER_EMAIL_AYANO=ayano@example.com
+```
+
+2. **Configure additional API keys in `.env` file**
+
+```bash
+# FAL API Key (for fal-ai skills)
+FAL_KEY=your_fal_key_here
+
+# Google API Key (for agentic-vision-gemini skills)
+GOOGLE_API_KEY=your_google_api_key_here
+```
+
+3. **Start the Mugen environment docker-compose**
+
+```bash
+docker compose -f docker-compose-mugen.yml up -d
+```
+
+### Per-Agent Configuration
+
+In the Mugen environment, multiple agents can each have their own Git/GitHub settings:
+
+| Agent | Git Username | Git Email | GitHub PAT |
+|-------|--------------|-----------|------------|
+| AYANO | `GIT_USER_NAME_AYANO` | `GIT_USER_EMAIL_AYANO` | `GH_PAT_AYANO` |
+| SEIRA | `GIT_USER_NAME_SEIRA` | `GIT_USER_EMAIL_SEIRA` | `GH_PAT_SEIRA` |
+| MIREL | `GIT_USER_NAME_MIREL` | `GIT_USER_EMAIL_MIREL` | `GH_PAT_MIREL` |
+
+### Port Configuration
+
+In the Mugen environment, you can customize the port for each service in the `.env` file:
+
+```bash
+# CC API Port (default: 8081)
+CC_API_PORT=8081
+
+# Browser API Port (default: 8083)
+BROWSER_API_PORT=8083
+
+# Browser VNC Port (default: 5900)
+BROWSER_VNC_PORT=5900
+
+# Browser noVNC Port (default: 7900)
+BROWSER_NOVNC_PORT=7900
+
+# Discord Bot Port (default: 8082)
+DISCORD_BOT_PORT=8082
+```
+
+### File Structure (Mugen Environment)
+
+```
+cinderella/
+├── docker-compose-mugen.yml     # Docker compose configuration for Mugen environment
+├── config/agent2/MultimediaOS-MUGEN/  # Workspace (project directory)
+├── cc-api/
+│   ├── entrypoint.sh            # Entrypoint script for Git configuration
+│   └── Dockerfile               # Includes Git and entrypoint support
+└── .SourceSageignore            # SourceSage ignore settings (excludes config/ directory)
+```
+
 ## Logging
 
 Both `cc-api` and `discord-bot` support detailed logging for debugging and monitoring.
