@@ -10,6 +10,7 @@ services:
       # プロジェクトディレクトリをマウント
       - ./config/agent2/MultimediaOS-MUGEN:/workspace
       # メディアディレクトリ（Claude Codeからアクセス可能）
+      - ./config/agent2/MultimediaOS-MUGEN/media:/workspace/media
     environment:
       # ========================================
       # API設定（どちらか一方を有効にしてください）
@@ -40,9 +41,10 @@ services:
       # https://github.com/settings/tokens でトークンを取得してください
       - GH_PAT=${GH_PAT_AYANO}
 
-      # Git 設定（エージェント別）
-      - GIT_USER_NAME=${GIT_USER_NAME_AYANO}
-      - GIT_USER_EMAIL=${GIT_USER_EMAIL_AYANO}
+      # Git 設定（コンテナ共通）
+      # 注意: .envファイルで GIT_USER_NAME と GIT_USER_EMAIL を設定してください
+      - GIT_USER_NAME=${GIT_USER_NAME}
+      - GIT_USER_EMAIL=${GIT_USER_EMAIL}
 
       # Claude Code オプション
       # --dangerously-skip-permissions を有効にするかどうか

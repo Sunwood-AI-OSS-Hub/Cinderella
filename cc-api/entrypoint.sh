@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eu
 
 # Git設定（環境変数から）
 # 注意: このスクリプトはcinderellaユーザーで実行される必要があります
