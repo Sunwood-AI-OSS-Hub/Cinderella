@@ -40,11 +40,22 @@ services:
       # https://github.com/settings/tokens でトークンを取得してください
       - GH_PAT=${GH_PAT_AYANO}
 
+      # Git 設定（エージェント別）
+      - GIT_USER_NAME=${GIT_USER_NAME_AYANO}
+      - GIT_USER_EMAIL=${GIT_USER_EMAIL_AYANO}
+
       # Claude Code オプション
       # --dangerously-skip-permissions を有効にするかどうか
       - CLAUDE_SKIP_PERMISSIONS=${CLAUDE_SKIP_PERMISSIONS}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - cinderella-network
+    restart: unless-stopped
 
   # Browser API
   browser-api:
