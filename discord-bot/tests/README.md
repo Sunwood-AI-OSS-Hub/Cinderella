@@ -11,6 +11,17 @@ Discord Bot APIのテストスイートと結果のドキュメント
   2. 議論へのリアクション
   3. 議論履歴の確認
 
+### Mention Functionality (7 tests) ⭐ NEW
+- **結果**: テスト作成完了
+- **テスト項目**:
+  1. 通常メッセージ送信（メンションなし）
+  2. ユーザーメンション (<@USER_ID>)
+  3. 複数メンション
+  4. ロールメンション (<@&ROLE_ID>)
+  5. @everyone メンション
+  6. @here メンション
+  7. メンション付き返信
+
 ### Message Handlers (17 tests)
 - **結果**: 17/17 パス（完璧）
 - **テスト項目**:
@@ -86,8 +97,14 @@ python test_guild_handlers.py
 # 議論機能のみ
 python test_debate_handler.py
 
+# メンション機能のみ ⭐ NEW
+python test_mention.py
+
 # 引数を指定（チャンネルID、ギルドID、ユーザーID）
 python test_all.py <channel_id> <guild_id> <user_id>
+
+# メンションテストでロールメンションもテストする場合
+python test_mention.py <channel_id> <guild_id> <user_id> <role_id>
 ```
 
 ## 注意点
