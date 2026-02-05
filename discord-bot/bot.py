@@ -354,15 +354,29 @@ async def task(ctx, *, prompt: str = None):
 
 async def process_ask(ctx, prompt: str):
     """Cinderella APIを呼び出して結果を返す
-    
+
     重要: Claude CodeはSKILL.mdに従って、自分でDiscord APIを使ってメッセージを送信する
     discord-botは単なるAPIゲートウェイとして機能し、Claude Codeが直接Discordを操作する
+
+    Args:
+        ctx: Contextオブジェクト（message属性がある場合は通常コマンド、interaction属性がある場合はスラッシュコマンド）
+        prompt: ユーザーからのプロンプト
     """
     try:
+        # ユーザーとチャンネル情報を取得（スラッシュコマンドと通常コマンドの両方に対応）
+        if hasattr(ctx, 'interaction') and ctx.interaction:
+            user = ctx.interaction.user
+            channel = ctx.interaction.channel
+            message_id = ctx.interaction.id  # Interaction IDを使用
+        else:
+            user = ctx.message.author
+            channel = ctx.channel
+            message_id = ctx.message.id
+
         logger.info("=" * 60)
         logger.info("📨 [1/5] Discordメッセージを受信")
-        logger.info(f"  👤 ユーザー: {ctx.message.author} (ID: {ctx.message.author.id})")
-        logger.info(f"  💬 チャンネル: {ctx.channel.name} (ID: {ctx.channel.id})")
+        logger.info(f"  👤 ユーザー: {user} (ID: {user.id})")
+        logger.info(f"  💬 チャンネル: {channel.name} (ID: {channel.id})")
         logger.info(f"  📝 プロンプト:\n{prompt[:500]}")
         logger.debug(f"  📝 プロンプト (全体):\n{prompt}")
         logger.info("=" * 60)
@@ -387,8 +401,8 @@ async def process_ask(ctx, prompt: str):
             # プロンプトにDiscord操作のための情報を追加
             # Guild IDの安全な取得（DMの場合は'N/A'）
             guild_id = 'N/A'
-            if hasattr(ctx.channel, 'guild') and ctx.channel.guild:
-                guild_id = ctx.channel.guild.id
+            if hasattr(channel, 'guild') and channel.guild:
+                guild_id = channel.guild.id
 
             enhanced_prompt = f"""{prompt}
 
@@ -396,10 +410,10 @@ async def process_ask(ctx, prompt: str):
 【Discord操作情報】
 あなたは現在Discord上で動作しています。以下の情報を使用して、必要に応じて使用してください。
 
-- Channel ID: {ctx.channel.id}
+- Channel ID: {channel.id}
 - Guild ID: {guild_id}
-- User ID: {ctx.message.author.id}
-- Message ID: {ctx.message.id}
+- User ID: {user.id}
+- Message ID: {message_id}
 
 【直近のチャット履歴】
 {chat_history if chat_history else '(なし)'}
@@ -488,6 +502,10 @@ async def process_task(ctx, prompt: str):
     """スレッドを作成してCinderella APIを呼び出し、スレッドで会話する
 
     Claude Codeからの応答はスレッド内に投稿される
+
+    Args:
+        ctx: Contextオブジェクト（message属性がある場合は通常コマンド、interaction属性がある場合はスラッシュコマンド）
+        prompt: ユーザーからのタスクプロンプト
     """
     thread = None
     try:
@@ -495,14 +513,16 @@ async def process_task(ctx, prompt: str):
         logger.info("📨 [1/6] Discordタスクメッセージを受信")
 
         # スラッシュコマンドの場合は interaction から情報を取得
-        if hasattr(ctx, 'interaction'):
+        if hasattr(ctx, 'interaction') and ctx.interaction:
             user = ctx.interaction.user
             channel = ctx.interaction.channel
-            original_message = ctx.interaction.message
+            original_message = None  # スラッシュコマンドには元メッセージがない
+            interaction_id = ctx.interaction.id
         else:
             user = ctx.message.author
             channel = ctx.channel
             original_message = ctx.message
+            interaction_id = None
 
         logger.info(f"  👤 ユーザー: {user} (ID: {user.id})")
         logger.info(f"  💬 チャンネル: {channel.name} (ID: {channel.id})")
@@ -564,6 +584,9 @@ async def process_task(ctx, prompt: str):
             if hasattr(channel, 'guild') and channel.guild:
                 guild_id = channel.guild.id
 
+            # Message ID: スラッシュコマンドの場合はinteraction_idを使用
+            message_id = original_message.id if original_message else (interaction_id if interaction_id else 'N/A')
+
             enhanced_prompt = f"""{prompt}
 
 ---
@@ -573,7 +596,7 @@ async def process_task(ctx, prompt: str):
 - Channel ID: {channel.id}
 - Guild ID: {guild_id}
 - User ID: {user.id}
-- Message ID: {original_message.id if original_message else 'N/A'}
+- Message ID: {message_id}
 - Thread ID: {thread.id}
 
 【直近のチャット履歴】
@@ -787,8 +810,9 @@ async def task_slash(interaction: discord.Interaction, prompt: str):
     class TaskContext:
         def __init__(self, interaction):
             self.interaction = interaction
-            self.message = interaction.message
+            self.message = None  # スラッシュコマンドにはmessage属性がない
             self.channel = interaction.channel
+            self.author = interaction.user  # author属性を追加
 
         async def send(self, *args, **kwargs):
             return await self.interaction.followup.send(*args, **kwargs)
@@ -806,8 +830,9 @@ async def ask_slash(interaction: discord.Interaction, prompt: str):
     class AskContext:
         def __init__(self, interaction):
             self.interaction = interaction
-            self.message = interaction.message
+            self.message = None  # スラッシュコマンドにはmessage属性がない
             self.channel = interaction.channel
+            self.author = interaction.user  # author属性を追加
 
         async def send(self, *args, **kwargs):
             return await self.interaction.followup.send(*args, **kwargs)
