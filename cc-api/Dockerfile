@@ -2,9 +2,9 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 
 WORKDIR /app
 
-# Node.js（LTS版）、sudo、curlをインストール
+# Node.js（LTS版）、sudo、curl、gitをインストール
 RUN apt-get update && \
-    apt-get install -y curl sudo && \
+    apt-get install -y curl sudo git && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
@@ -26,6 +26,10 @@ RUN uv pip install --system google-genai
 
 # ソースコードをコピー（cc-apiディレクトリからコピー）
 COPY server.py .
+COPY entrypoint.sh /entrypoint.sh
+
+# entrypoint.shを実行可能に
+RUN chmod +x /entrypoint.sh
 
 # アプリケーションディレクトリの所有権をcinderellaに変更
 RUN chown -R cinderella:cinderella /app
@@ -43,5 +47,6 @@ USER cinderella
 # ポートを公開
 EXPOSE 8080
 
-# サーバーを起動
+# entrypointを使用してサーバーを起動
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]
