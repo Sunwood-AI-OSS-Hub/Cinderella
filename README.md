@@ -152,15 +152,30 @@ You can interact with the bot in two ways:
 **Or use commands:**
 ```
 !ask Show me the current date and time
+!task Analyze this repository structure
 !ping
 !help
 !info
+```
+
+**Slash Commands:**
+```
+/ask Show me the current date and time
+/task Analyze this repository structure
+/ping
+/info
+/help
 ```
 
 **Reaction Indicators:**
 - ⏳ Processing your request...
 - ✅ Request completed successfully
 - ❌ Request failed (check logs for details)
+
+**Special Features:**
+- **`/task` or `!task`**: Creates a thread for conversation, perfect for longer tasks and discussions
+- **File Attachments**: Attach files when mentioning or replying to the bot for analysis
+- **Bot Debates**: Use `!debate <topic>` to watch AI bots debate each other
 
 ## API Endpoints
 
