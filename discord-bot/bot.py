@@ -11,6 +11,7 @@ import logging
 import threading
 import discord
 from discord.ext import commands
+from discord import app_commands
 import requests
 import uvicorn
 from fastapi import FastAPI, Header, HTTPException, Depends
@@ -160,6 +161,13 @@ async def on_ready():
     logger.info(f"{bot.user} が起動しました！✨")
     logger.info(f"Connected to {len(bot.guilds)} guilds")
 
+    # スラッシュコマンドを同期
+    try:
+        synced = await bot.tree.sync()
+        logger.info(f"📋 スラッシュコマンドを {len(synced)} 個同期しました: {[cmd.name for cmd in synced]}")
+    except Exception as e:
+        logger.error(f"❌ スラッシュコマンドの同期に失敗: {e}")
+
 
 @bot.event
 async def on_message(message):
@@ -167,51 +175,64 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # ========================================
-    # 添付ファイルのダウンロード処理
-    # ========================================
-    if message.attachments:
-        logger.info(f"📎 添付ファイルを検出: {len(message.attachments)} 個")
-        logger.info(f"   チャンネル: {message.channel.name} (ID: {message.channel.id})")
-        logger.info(f"   送信者: {message.author.display_name} (ID: {message.author.id})")
+    # Botへのメンション、またはBotへの返信かどうかをチェック
+    is_mentioned = bot.user in message.mentions
+    is_reply_to_bot = message.reference and message.reference.message_id
+    # 追加: 返信先がBotかどうかを確認
+    if is_reply_to_bot:
+        try:
+            referenced_message = await message.channel.fetch_message(message.reference.message_id)
+            is_reply_to_bot = referenced_message.author == bot.user
+        except Exception:
+            is_reply_to_bot = False
 
-        downloaded_files = []
-        for attachment in message.attachments:
-            file_path = await download_attachment(attachment, message)
-            if file_path:
-                downloaded_files.append({
-                    "name": attachment.filename,
-                    "path": file_path,
-                    "size": attachment.size
-                })
+    # Botへのメンションまたは返信の場合のみ、添付ファイルを処理
+    if is_mentioned or is_reply_to_bot:
+        # ========================================
+        # 添付ファイルのダウンロード処理
+        # ========================================
+        if message.attachments:
+            logger.info(f"📎 添付ファイルを検出: {len(message.attachments)} 個")
+            logger.info(f"   チャンネル: {message.channel.name} (ID: {message.channel.id})")
+            logger.info(f"   送信者: {message.author.display_name} (ID: {message.author.id})")
 
-        # 通知メッセージを送信
-        if downloaded_files:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            notification = f"📁 **添付ファイルを保存しました**\n"
-            notification += f"⏰ {timestamp}\n"
-            notification += f"👤 送信者: {message.author.display_name}\n"
-            notification += f"📂 保存先: `/workspace/media`\n\n"
+            downloaded_files = []
+            for attachment in message.attachments:
+                file_path = await download_attachment(attachment, message)
+                if file_path:
+                    downloaded_files.append({
+                        "name": attachment.filename,
+                        "path": file_path,
+                        "size": attachment.size
+                    })
 
-            for i, file_info in enumerate(downloaded_files, 1):
-                # サイズを人間が読みやすい形式に変換
-                size = file_info["size"]
-                if size >= 1024 * 1024:
-                    size_str = f"{size / (1024 * 1024):.2f} MB"
-                elif size >= 1024:
-                    size_str = f"{size / 1024:.2f} KB"
-                else:
-                    size_str = f"{size} bytes"
+            # 通知メッセージを送信
+            if downloaded_files:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                notification = f"📁 **添付ファイルを保存しました**\n"
+                notification += f"⏰ {timestamp}\n"
+                notification += f"👤 送信者: {message.author.display_name}\n"
+                notification += f"📂 保存先: `/workspace/media`\n\n"
 
-                # ファイルパスを /workspace/media に変換して表示
-                display_path = file_info['path'].replace('/app/media', '/workspace/media')
+                for i, file_info in enumerate(downloaded_files, 1):
+                    # サイズを人間が読みやすい形式に変換
+                    size = file_info["size"]
+                    if size >= 1024 * 1024:
+                        size_str = f"{size / (1024 * 1024):.2f} MB"
+                    elif size >= 1024:
+                        size_str = f"{size / 1024:.2f} KB"
+                    else:
+                        size_str = f"{size} bytes"
 
-                notification += f"**{i}. {file_info['name']}**\n"
-                notification += f"   - ファイルパス: `{display_path}`\n"
-                notification += f"   - サイズ: {size_str}\n"
+                    # ファイルパスを /workspace/media に変換して表示
+                    display_path = file_info['path'].replace('/app/media', '/workspace/media')
 
-            await message.channel.send(notification)
-            logger.info(f"📤 通知メッセージを送信しました")
+                    notification += f"**{i}. {file_info['name']}**\n"
+                    notification += f"   - ファイルパス: `{display_path}`\n"
+                    notification += f"   - サイズ: {size_str}\n"
+
+                await message.channel.send(notification)
+                logger.info(f"📤 通知メッセージを送信しました")
 
     # 議論中のチャンネルかチェック
     context = debate_manager.get_context(message.channel.id)
@@ -277,10 +298,10 @@ async def ask(ctx, *, prompt: str = None):
 @bot.command()
 async def debate(ctx, *, topic: str = None):
     """Bot間議論を開始するコマンド
-    
+
     使用方法:
     !debate <トピック> [--personality=<type>]
-    
+
     例:
     !debate AIと仕事
     !debate リモートワークの是非 --personality=optimist
@@ -288,28 +309,47 @@ async def debate(ctx, *, topic: str = None):
     if not topic or not topic.strip():
         await ctx.send("❌ 議論のトピックを入力してね！\n例: `!debate AIと仕事`")
         return
-    
+
     # パーソナリティを抽出（デフォルトはoptimist）
     personality = "optimist"
     if "--personality=" in topic:
         parts = topic.split("--personality=")
         topic = parts[0].strip()
         personality = parts[1].split()[0].strip()
-    
+
     # 有効なパーソナリティかチェック
     if personality not in BOT_PERSONALITIES:
         await ctx.send(f"❌ 無効なパーソナリティです: {personality}\n選択肢: {', '.join(BOT_PERSONALITIES.keys())}")
         return
-    
+
     # リアクションで応答
     await ctx.message.add_reaction("💬")
-    
+
     # 議論を開始
     try:
         await handle_debate_command(ctx, topic, personality)
     except Exception as e:
         logger.error(f"Error in debate command: {e}", exc_info=True)
         await ctx.send(f"❌ 議論の開始中にエラーが発生しました: {e}")
+
+
+@bot.command()
+async def task(ctx, *, prompt: str = None):
+    """Claudeに質問してスレッドで会話するコマンド
+
+    使用方法:
+    !task <タスク>
+
+    例:
+    !task このリポジトリの構造を説明して
+    """
+    if not prompt or not prompt.strip():
+        await ctx.send("❌ タスク内容が空だよ……何か依頼したいことを入力してね！")
+        return
+
+    # 非同期で処理
+    task = bot.loop.create_task(process_task(ctx, prompt))
+    task.add_done_callback(lambda t: t.exception() and logger.error(f"Task error: {t.exception()}"))
 
 
 async def process_ask(ctx, prompt: str):
@@ -444,6 +484,185 @@ async def update_reaction(message, new_emoji):
         logger.error(f"Failed to update reaction: {e}")
 
 
+async def process_task(ctx, prompt: str):
+    """スレッドを作成してCinderella APIを呼び出し、スレッドで会話する
+
+    Claude Codeからの応答はスレッド内に投稿される
+    """
+    thread = None
+    try:
+        logger.info("=" * 60)
+        logger.info("📨 [1/6] Discordタスクメッセージを受信")
+
+        # スラッシュコマンドの場合は interaction から情報を取得
+        if hasattr(ctx, 'interaction'):
+            user = ctx.interaction.user
+            channel = ctx.interaction.channel
+            original_message = ctx.interaction.message
+        else:
+            user = ctx.message.author
+            channel = ctx.channel
+            original_message = ctx.message
+
+        logger.info(f"  👤 ユーザー: {user} (ID: {user.id})")
+        logger.info(f"  💬 チャンネル: {channel.name} (ID: {channel.id})")
+        logger.info(f"  📝 プロンプト:\n{prompt[:500]}")
+        logger.debug(f"  📝 プロンプト (全体):\n{prompt}")
+        logger.info("=" * 60)
+
+        # リアクションで処理中を示す（元メッセージがある場合のみ）
+        if original_message:
+            await original_message.add_reaction("🧵")
+
+        # スレッドを作成（スラッシュコマンドの場合はチャンネルに送信してからスレッド）
+        logger.info("🧵 [2/6] スレッドを作成")
+
+        if original_message:
+            # 元メッセージがある場合は、そこからスレッドを作成
+            thread = await original_message.create_thread(
+                name=f"📋 タスク: {prompt[:50]}..." if len(prompt) > 50 else f"📋 タスク: {prompt}",
+                auto_archive_duration=1440  # 24時間後にアーカイブ
+            )
+        else:
+            # スラッシュコマンドの場合は、まずメッセージを送信してからスレッドを作成
+            first_message = await channel.send(f"📋 **タスク**: {prompt}")
+            thread = await first_message.create_thread(
+                name=f"📋 タスク: {prompt[:50]}..." if len(prompt) > 50 else f"📋 タスク: {prompt}",
+                auto_archive_duration=1440
+            )
+
+        logger.info(f"  ✅ スレッド作成成功: {thread.id}")
+
+        # 開始メッセージを送信
+        await thread.send("⏳ タスクを処理中です……")
+
+        # Discordの「入力中...」インジケーターを表示
+        logger.info("⏳ [3/6] cc-api (Claude Code) にリクエスト送信")
+        logger.info("  → Claude CodeはSKILL.mdに従ってDiscord APIを使用可能")
+        logger.info("  → allowed_tools: ['Read', 'Bash', 'Edit', 'discord']")
+
+        async with thread.typing():
+            # 直近のチャット履歴を取得
+            chat_history = ""
+            try:
+                # スレッド内の履歴を取得（現在のスレッドのみ）
+                async for msg in thread.history(limit=10):
+                    chat_history += f"[{msg.created_at.strftime('%H:%M')}] {msg.author.display_name}: {msg.content[:200]}\n"
+
+                # チャンネルの履歴を取得（スレッド外のメッセージのみ、他のスレッドは除外）
+                async for msg in channel.history(limit=5):
+                    # スレッドに属するメッセージを除外
+                    if not msg.thread:
+                        chat_history += f"[{msg.created_at.strftime('%H:%M')}] {msg.author.display_name}: {msg.content[:200]}\n"
+
+                chat_history = chat_history.strip()
+            except Exception as e:
+                logger.warning(f"Failed to fetch chat history: {e}")
+
+            # プロンプトにDiscord操作のための情報を追加
+            guild_id = 'N/A'
+            if hasattr(channel, 'guild') and channel.guild:
+                guild_id = channel.guild.id
+
+            enhanced_prompt = f"""{prompt}
+
+---
+【Discord操作情報】
+あなたは現在Discord上で動作しています。以下の情報を使用して、必要に応じて使用してください。
+
+- Channel ID: {channel.id}
+- Guild ID: {guild_id}
+- User ID: {user.id}
+- Message ID: {original_message.id if original_message else 'N/A'}
+- Thread ID: {thread.id}
+
+【直近のチャット履歴】
+{chat_history if chat_history else '(なし)'}
+
+【重要】
+回答は必ずスレッド(Thread ID: {thread.id})内で行ってください。
+"""
+
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: requests.post(
+                    f"{CINDERELLA_URL}/v1/claude/run",
+                    json={
+                        "prompt": enhanced_prompt,
+                        "cwd": "/workspace",
+                        "allowed_tools": ["Read", "Bash", "Edit", "discord"],
+                        "timeout_sec": 300,
+                    },
+                    timeout=310,
+                ),
+            )
+
+        logger.info(f"📥 [4/6] cc-apiからレスポンス受信 (status: {response.status_code})")
+        logger.info("  → Claude CodeがDiscord APIを使用して直接メッセージを送信した可能性あり")
+
+        if response.status_code == 200:
+            data = response.json()
+            result = data["stdout_json"].get("result", "")
+            logger.debug(f"Result from API (first 200 chars): {result[:200]}")
+
+            if not result:
+                logger.info("  → Claude Codeからの応答が空（Discord APIで直接送信済みの可能性）")
+                await thread.send("✅ タスク処理完了（Discord APIで直接応答あり）")
+                logger.info("=" * 60)
+                logger.info("[完了] Claude CodeがDiscord APIで直接送信した可能性あり ✅")
+                logger.info("=" * 60)
+                return
+
+            # 結果を分割送信（Discordの制限対応）
+            logger.info("📤 [5/6] Claude Codeの応答をスレッドに送信")
+            chunks = [result[i : i + 1900] for i in range(0, len(result), 1900)]
+            logger.info(f"  分割数: {len(chunks)} chunk(s)")
+            for i, chunk in enumerate(chunks):
+                logger.info(f"  送信 chunk {i+1}/{len(chunks)} (length: {len(chunk)})")
+                await thread.send(chunk)
+                logger.info(f"  ✓ chunk {i+1} 送信完了")
+
+            # 成功メッセージ
+            await thread.send("✅ タスク処理完了")
+
+            # 元のメッセージのリアクションを更新
+            if original_message:
+                await update_reaction(original_message, "✅")
+            logger.info("=" * 60)
+            logger.info("[完了] 処理完了 ✅")
+            logger.info("=" * 60)
+        else:
+            error_detail = ""
+            try:
+                error_json = response.json()
+                error_detail = error_json.get("detail", "")
+            except Exception as e:
+                logger.debug(f"Failed to parse error response as JSON: {e}")
+            await thread.send(f"❌ エラー ({response.status_code}): {error_detail or 'APIで問題が発生したみたい'}")
+            if original_message:
+                await update_reaction(original_message, "❌")
+
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"Connection error: {e}")
+        if thread:
+            await thread.send("❌ cc-apiに接続できなかったみたい……Dockerコンテナが動いているか確認してね！")
+        if original_message:
+            await update_reaction(original_message, "❌")
+    except requests.exceptions.Timeout as e:
+        logger.error(f"Timeout error: {e}")
+        if thread:
+            await thread.send("⏱️ タイムアウトしちゃった……時間のかかる処理は今のところ無理そう")
+        if original_message:
+            await update_reaction(original_message, "❌")
+    except Exception as e:
+        logger.error(f"Unexpected error: {type(e).__name__}: {e}", exc_info=True)
+        if thread:
+            await thread.send(f"❌ 例外発生: {type(e).__name__}")
+        if original_message:
+            await update_reaction(original_message, "❌")
+
+
 async def download_attachment(attachment, message):
     """添付ファイルをダウンロードして保存
 
@@ -513,6 +732,7 @@ async def help_command(ctx):
 
 **コマンド一覧:**
 • `!ask <質問>` - Claudeに質問する
+• `!task <タスク>` - スレッドでタスクを処理
 • `!debate <トピック>` - Bot間議論を開始
 • `@BotName <質問>` - メンションだけで質問（「ask」は不要）
 • `!ping` - 動作確認
@@ -521,6 +741,7 @@ async def help_command(ctx):
 **使用例:**
 ```
 !ask 現在の日時を表示して
+!task このリポジトリの構造を説明して
 !debate AIと仕事
 @Cinderella 今日の天気は？
 !ping
@@ -529,6 +750,10 @@ async def help_command(ctx):
 **議論機能について:**
 `!debate` コマンドで2人のBotが議論を行います。
 ターン数が5回に達するか、議論が収束すると自動的にまとめが作成されます。
+
+**タスク機能について:**
+`!task` コマンドはスレッドを作成して、そこで会話します。
+長いタスクや議論が必要な場合に便利です。
 """
     await ctx.send(help_text)
 
@@ -545,6 +770,107 @@ async def info(ctx):
 ⏱️ タイムアウト: 300秒
 """
     await ctx.send(info_text)
+
+
+# ========================================
+# スラッシュコマンド
+# ========================================
+
+@bot.tree.command(name="task", description="Claudeにタスクを依頼してスレッドで会話します")
+@app_commands.describe(prompt="依頼したいタスクや質問を入力してください")
+async def task_slash(interaction: discord.Interaction, prompt: str):
+    """スラッシュコマンド: /task"""
+    # 応答を延期（スレッド作成前にDeferする必要がある）
+    await interaction.response.defer()
+
+    # Context-likeオブジェクトを作成してprocess_taskを呼ぶ
+    class TaskContext:
+        def __init__(self, interaction):
+            self.interaction = interaction
+            self.message = interaction.message
+            self.channel = interaction.channel
+
+        async def send(self, *args, **kwargs):
+            return await self.interaction.followup.send(*args, **kwargs)
+
+    ctx = TaskContext(interaction)
+    await process_task(ctx, prompt)
+
+
+@bot.tree.command(name="ask", description="Claudeに質問します")
+@app_commands.describe(prompt="質問を入力してください")
+async def ask_slash(interaction: discord.Interaction, prompt: str):
+    """スラッシュコマンド: /ask"""
+    await interaction.response.defer()
+
+    class AskContext:
+        def __init__(self, interaction):
+            self.interaction = interaction
+            self.message = interaction.message
+            self.channel = interaction.channel
+
+        async def send(self, *args, **kwargs):
+            return await self.interaction.followup.send(*args, **kwargs)
+
+    ctx = AskContext(interaction)
+    await process_ask(ctx, prompt)
+
+
+@bot.tree.command(name="ping", description="動作確認")
+async def ping_slash(interaction: discord.Interaction):
+    """スラッシュコマンド: /ping"""
+    await interaction.response.send_message("pon！……ふふ、生きてるよ")
+
+
+@bot.tree.command(name="info", description="ボット情報を表示")
+async def info_slash(interaction: discord.Interaction):
+    """スラッシュコマンド: /info"""
+    info_text = f"""
+**Cinderella Discord Bot** ✨
+
+🤖 Bot名: {bot.user.display_name}
+📡 API: {CINDERELLA_URL}
+🔧 許可ツール: Read, Bash, Edit
+⏱️ タイムアウト: 300秒
+"""
+    await interaction.response.send_message(info_text)
+
+
+@bot.tree.command(name="help", description="ヘルプを表示")
+async def help_slash(interaction: discord.Interaction):
+    """スラッシュコマンド: /help"""
+    help_text = """
+**Cinderella Discord Bot** 🔮
+
+**スラッシュコマンド一覧:**
+• `/task <タスク>` - スレッドでタスクを処理
+• `/ask <質問>` - Claudeに質問する
+• `/ping` - 動作確認
+• `/info` - Bot情報
+• `/help` - ヘルプ
+
+**通常コマンド（!で始まる）:**
+• `!ask <質問>` - Claudeに質問する
+• `!task <タスク>` - スレッドでタスクを処理
+• `!debate <トピック>` - Bot間議論を開始
+
+**メンション:**
+• `@BotName <質問>` - メンションだけで質問
+
+**使用例:**
+```
+/task このリポジトリの構造を説明して
+/ask 現在の日時を表示して
+!debate AIと仕事
+@Cinderella 今日の天気は？
+/ping
+```
+
+**タスク機能について:**
+`/task` コマンドはスレッドを作成して、そこで会話します。
+長いタスクや議論が必要な場合に便利です。
+"""
+    await interaction.response.send_message(help_text)
 
 
 # ========================================
