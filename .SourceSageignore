@@ -102,9 +102,8 @@ LICENSE
 # workspace directory (created at runtime)
 /workspace
 
+# Git, Claude, GitHub directories
 .git/
 .claude/
 .github/
-
-
 config/
